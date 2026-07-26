@@ -1,9 +1,10 @@
-"""ACDM-KERNEL · регрессия проводки (находки A/B/D методологического аудита).
+"""ACDM-KERNEL · wiring regression (audit findings A/B/D).
 
-КЛЮЧЕВОЕ: все проверки идут через ЖИВОЙ kernel.cycle(), а не через изолированный
-вызов learner'а. Именно обход живого контура прежде прятал разомкнутую петлю.
+KEY: every check runs through the LIVE kernel.cycle, not through an isolated
+call to the learner. Bypassing the live circuit is exactly what used to hide the
+disconnected learning loop.
 
-Запуск:
+Run:
     python3 tests/test_wiring.py
 """
 from __future__ import annotations
@@ -42,33 +43,33 @@ def sig(name, value, conf=1.0, cycle=0):
 
 
 # ---------------------------------------------------------------------------
-# A. escalate_bias реально влияет на решение (было: мёртвый параметр)
+# A. escalate_bias actually affects the decision (was: a dead parameter)
 # ---------------------------------------------------------------------------
 
 def test_A_bias_is_live():
     def level_at(bias):
         k = fresh(rp.STANDARD_SPECS, rp.LADDER_RESILIENCE)
         k.apply_change(Change("escalate_bias", bias, AuthorRole.HUMAN, "test"))
-        # балл 0.28 — чуть НИЖЕ порога Z2 (0.30): без сдвига Z1, со сдвигом Z2
+        # score 0.28 — just BELOW the Z2 threshold (0.30): Z1 without a shift, Z2 with one
         return k.cycle([sig("error_rate", 0.28, cycle=0)], rp.estimator, cycle=0).level
     from acdm_kernel import Level
-    check("A1 без сдвига балл 0.28 -> Z1", level_at(0.0) is Level.Z1)
-    check("A2 escalate_bias=0.05 -> тот же балл эскалирует в Z2",
+    check("A1 without bias, score 0.28 -> Z1", level_at(0.0) is Level.Z1)
+    check("A2 escalate_bias=0.05 -> the same score escalates to Z2",
           level_at(0.05) is Level.Z2, f"level={level_at(0.05)}")
 
-    # A3: у плагина без escalate_bias ядро не падает и ведёт себя как bias=0.
+    # A3: a plugin without escalate_bias does not crash and behaves as bias=0.
     k = fresh(ap.STANDARD_SPECS, ap.LADDER_AI_AGENT)
     d = k.cycle([sig("output_anomaly", 0.28, cycle=0)], ap.estimator, cycle=0)
-    check("A3 плагин без escalate_bias работает (bias опционален)",
+    check("A3 a plugin without escalate_bias works (bias is optional)",
           d.level is Level.Z1, f"level={d.level}")
 
 
 # ---------------------------------------------------------------------------
-# B. Живая память ядра заполняется; governance доходит до learner
+# B. Live kernel memory is populated; governance reaches the learner
 # ---------------------------------------------------------------------------
 
 def test_B_memory_is_live():
-    # B1: Tier-C порог из governance теперь виден learner'у ЧЕРЕЗ живой цикл.
+    # B1: a Tier-C threshold from governance now reaches the learner THROUGH the live loop.
     k = fresh(rp.STANDARD_SPECS, rp.LADDER_RESILIENCE)
     learner = rp.ResilienceLearner()
     k.apply_change(Change("learner_min_observations", 3.0, AuthorRole.HUMAN, "op"))
@@ -78,26 +79,26 @@ def test_B_memory_is_live():
                 rp.estimator, learner, cycle=c)
     applied = [e for e in k.audit_events()
                if e.kind == "CHANGE" and e.payload.get("param") == "escalate_bias"]
-    check("B1 governance-порог доходит до learner на живом контуре",
-          len(applied) >= 1, "learner не предложил через живой цикл — память не проведена")
+    check("B1 governance threshold reaches the learner on the live circuit",
+          len(applied) >= 1, "learner did not propose through the live loop — memory not wired")
 
-    # B2: memory_state_hash перестал быть константой.
+    # B2: memory_state_hash is no longer a constant.
     k = fresh(rp.STANDARD_SPECS, rp.LADDER_RESILIENCE)
     hashes = {k.cycle([sig("error_rate", 0.1 * c, cycle=c)], rp.estimator, cycle=c)
               .memory_state_hash for c in range(5)}
-    check("B2 memory_state_hash меняется между разными циклами",
-          len(hashes) == 5, f"distinct={len(hashes)} (константа = не проведено)")
+    check("B2 memory_state_hash varies between differing cycles",
+          len(hashes) == 5, f"distinct={len(hashes)} (a constant = not wired)")
 
-    # B3: живая память действительно содержит состояние.
+    # B3: live memory actually holds state.
     k = fresh(rp.STANDARD_SPECS, rp.LADDER_RESILIENCE)
     k.cycle([sig("error_rate", 0.9, cycle=0)], rp.estimator, cycle=0)
     mem = dict(k.memory_view())
-    check("B3 память ядра содержит last_score/last_level",
+    check("B3 kernel memory holds last_score/last_level",
           "last_score" in mem and "last_level" in mem, f"mem={mem}")
 
 
 # ---------------------------------------------------------------------------
-# D. Такт проставляется всем событиям (было: CHANGE и forced SNAPSHOT = 0)
+# D. Every event is cycle-stamped (was: CHANGE and forced SNAPSHOT = 0)
 # ---------------------------------------------------------------------------
 
 def test_D_cycle_stamped():
@@ -105,21 +106,21 @@ def test_D_cycle_stamped():
     k.cycle([sig("error_rate", 0.5, cycle=42)], rp.estimator, cycle=42)
     k.apply_change(Change("escalate_bias", 0.05, AuthorRole.LEARNER, "obs=60"))
     change_ev = [e for e in k.audit_events() if e.kind == "CHANGE"][-1]
-    check("D1 CHANGE-событие несёт текущий такт, не 0",
+    check("D1 CHANGE event carries the current tick, not 0",
           change_ev.cycle == 42, f"cycle={change_ev.cycle}")
 
-    # D2: forced SNAPSHOT при BEYOND_HORIZON тоже проставлен тактом.
+    # D2: the forced SNAPSHOT on BEYOND_HORIZON is cycle-stamped too.
     k = fresh(rp.STANDARD_SPECS, rp.LADDER_RESILIENCE)
     k.cycle([sig("error_rate", 0.0, cycle=0)], rp.estimator, cycle=100)  # beyond=30
     snap = [e for e in k.audit_events()
             if e.kind == "INTENT" and e.payload.get("action") == "SNAPSHOT"][0]
-    check("D2 forced SNAPSHOT несёт такт цикла, не 0",
+    check("D2 forced SNAPSHOT carries the cycle tick, not 0",
           snap.cycle == 100, f"cycle={snap.cycle}")
 
 
 if __name__ == "__main__":
-    print("ACDM-KERNEL · регрессия проводки (находки A/B/D)")
+    print("ACDM-KERNEL · wiring regression (findings A/B/D)")
     for t in (test_A_bias_is_live, test_B_memory_is_live, test_D_cycle_stamped):
         print(f"[{t.__name__}]")
         t()
-    print(f"\nБАТОН: все {PASSED} проверок зелёные")
+    print(f"\nALL GREEN — {PASSED} checks passed")

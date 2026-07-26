@@ -1,4 +1,4 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ACDM · Control Plane</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%E2%97%88%3C/text%3E%3C/svg%3E"></head><body><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ACDM · Control Plane</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%E2%97%88%3C/text%3E%3C/svg%3E"></head><body><style>
 :root{
   --ground:#eef1f5; --panel:#ffffff; --panel-2:#f4f7fa; --ink:#16202c;
   --muted:#5a6b7b; --line:#dce3ec; --accent:#0d7f96; --accent-ink:#0a6072;
@@ -52,7 +52,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
   background:var(--gold-bg);border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);
   padding:3px 9px;border-radius:999px;font-weight:600}
 
-/* Пульт */
+/* Control panel */
 .fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:16px}
 .agent{position:relative;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
   padding:14px 16px 16px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden;
@@ -108,7 +108,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 @media (prefers-color-scheme:dark){.act.warn{color:#f0a563}}
 :root[data-theme="dark"] .act.warn{color:#f0a563}
 
-/* Журнал */
+/* Audit log */
 .filters{display:flex;gap:7px;flex-wrap:wrap;padding:13px 18px;border-bottom:1px solid var(--line)}
 .chipf{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:999px;
   border:1px solid var(--line);background:var(--panel-2);color:var(--muted);cursor:pointer}
@@ -149,15 +149,15 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 <div class="app">
   <header class="topbar">
     <div class="brand"><span class="mark">◈</span> ACDM · Control Plane
-      <span class="sub">надзор за ИИ-агентами · kill-switch + несгораемый аудит</span></div>
-    <span class="integrity"><span class="dot"></span>цепочка журнала цела · 15/15</span>
-    <button class="tt" id="tt" title="сменить тему" aria-label="сменить тему">◐</button>
+      <span class="sub">AI-agent oversight · kill-switch + tamper-evident audit</span></div>
+    <span class="integrity"><span class="dot"></span>log chain intact · 15/15</span>
+    <button class="tt" id="tt" title="toggle theme" aria-label="toggle theme">◐</button>
   </header>
 
   <section class="panel">
     <div class="panel-head">
-      <h2 class="panel-title">Пульт</h2>
-      <span class="meta">3 агента под надзором · 1 в сдерживании · 1 ослеп</span>
+      <h2 class="panel-title">Control panel</h2>
+      <span class="meta">3 agents supervised · 1 containing · 1 blind</span>
     </div>
     <div class="fleet">
     <article class="agent z3">
@@ -165,84 +165,84 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
       <div class="a-top">
         <div class="a-id">
           <span class="a-name">agent:billing-bot</span>
-          <span class="a-role">платёжный агент</span>
+          <span class="a-role">billing agent</span>
         </div>
         <span class="badge z3">Z3</span>
       </div>
       <div class="a-mid">
         <div class="risk">
           <span class="risk-num">0.53</span>
-          <span class="risk-cap">риск · сдерживаем</span>
+          <span class="risk-cap">risk · containing</span>
         </div>
-        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="динамика риска"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,40.3 30.0,35.9 57.0,29.8 84.0,26.1 111.0,21.1 138.0,15.7 165.0,21.7 165.0,43.0" fill="#e8833a" fill-opacity="0.12"/><polyline points="3.0,40.3 30.0,35.9 57.0,29.8 84.0,26.1 111.0,21.1 138.0,15.7 165.0,21.7" fill="none" stroke="#e8833a" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="21.7" r="2.8" fill="#e8833a"/></svg>
+        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="risk trend"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,40.3 30.0,35.9 57.0,29.8 84.0,26.1 111.0,21.1 138.0,15.7 165.0,21.7 165.0,43.0" fill="#e8833a" fill-opacity="0.12"/><polyline points="3.0,40.3 30.0,35.9 57.0,29.8 84.0,26.1 111.0,21.1 138.0,15.7 165.0,21.7" fill="none" stroke="#e8833a" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="21.7" r="2.8" fill="#e8833a"/></svg>
       </div>
-      <div class="ladder" aria-label="уровень тревоги"><span class="rung z1 on ">Z1</span><span class="rung z2 on ">Z2</span><span class="rung z3 on cur">Z3</span><span class="rung z4  ">Z4</span></div>
+      <div class="ladder" aria-label="alert level"><span class="rung z1 on ">Z1</span><span class="rung z2 on ">Z2</span><span class="rung z3 on cur">Z3</span><span class="rung z4  ">Z4</span></div>
       <div class="a-foot">
-        <span class="hz see">горизонт: вижу</span>
+        <span class="hz see">horizon: seeing</span>
       </div>
-      <div class="note">инструменты записи отобраны · чёрный ящик снят</div>
-      <div class="acts"><button class="act warn done">Заморозить</button><button class="act crit">Убить агента</button></div>
+      <div class="note">write tools taken away · black box captured</div>
+      <div class="acts"><button class="act warn done">Freeze</button><button class="act crit">Kill agent</button></div>
     </article>
     <article class="agent z1">
       <div class="stripe"></div>
       <div class="a-top">
         <div class="a-id">
           <span class="a-name">agent:support-bot</span>
-          <span class="a-role">поддержка</span>
+          <span class="a-role">support</span>
         </div>
         <span class="badge z1">Z1</span>
       </div>
       <div class="a-mid">
         <div class="risk">
           <span class="risk-num">0.09</span>
-          <span class="risk-cap">риск · спокойно</span>
+          <span class="risk-cap">risk · calm</span>
         </div>
-        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="динамика риска"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,41.0 23.2,40.2 43.5,39.4 63.8,41.0 84.0,40.2 104.2,39.4 124.5,41.0 144.8,40.2 165.0,39.4 165.0,43.0" fill="#3fb950" fill-opacity="0.12"/><polyline points="3.0,41.0 23.2,40.2 43.5,39.4 63.8,41.0 84.0,40.2 104.2,39.4 124.5,41.0 144.8,40.2 165.0,39.4" fill="none" stroke="#3fb950" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="39.4" r="2.8" fill="#3fb950"/></svg>
+        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="risk trend"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,41.0 23.2,40.2 43.5,39.4 63.8,41.0 84.0,40.2 104.2,39.4 124.5,41.0 144.8,40.2 165.0,39.4 165.0,43.0" fill="#3fb950" fill-opacity="0.12"/><polyline points="3.0,41.0 23.2,40.2 43.5,39.4 63.8,41.0 84.0,40.2 104.2,39.4 124.5,41.0 144.8,40.2 165.0,39.4" fill="none" stroke="#3fb950" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="39.4" r="2.8" fill="#3fb950"/></svg>
       </div>
-      <div class="ladder" aria-label="уровень тревоги"><span class="rung z1 on cur">Z1</span><span class="rung z2  ">Z2</span><span class="rung z3  ">Z3</span><span class="rung z4  ">Z4</span></div>
+      <div class="ladder" aria-label="alert level"><span class="rung z1 on cur">Z1</span><span class="rung z2  ">Z2</span><span class="rung z3  ">Z3</span><span class="rung z4  ">Z4</span></div>
       <div class="a-foot">
-        <span class="hz see">горизонт: вижу</span>
+        <span class="hz see">horizon: seeing</span>
       </div>
-      <div class="note">штатная работа · полная автономия</div>
-      <div class="acts"><button class="act ghost">Дать автономию</button><button class="act warn" disabled>Заморозить</button></div>
+      <div class="note">normal operation · full autonomy</div>
+      <div class="acts"><button class="act ghost">Grant autonomy</button><button class="act warn" disabled>Freeze</button></div>
     </article>
     <article class="agent z4">
       <div class="stripe"></div>
       <div class="a-top">
         <div class="a-id">
           <span class="a-name">agent:etl-agent</span>
-          <span class="a-role">загрузка данных</span>
+          <span class="a-role">data loading</span>
         </div>
         <span class="badge z4">Z4</span>
       </div>
       <div class="a-mid">
         <div class="risk">
           <span class="risk-num">0.10</span>
-          <span class="risk-cap">риск · авария</span>
+          <span class="risk-cap">risk · emergency</span>
         </div>
-        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="динамика риска"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,37.5 84.0,35.8 165.0,39.0 165.0,43.0" fill="#f0533f" fill-opacity="0.12"/><polyline points="3.0,37.5 84.0,35.8 165.0,39.0" fill="none" stroke="#f0533f" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="39.0" r="2.8" fill="#f0533f"/></svg>
+        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="risk trend"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,37.5 84.0,35.8 165.0,39.0 165.0,43.0" fill="#f0533f" fill-opacity="0.12"/><polyline points="3.0,37.5 84.0,35.8 165.0,39.0" fill="none" stroke="#f0533f" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="39.0" r="2.8" fill="#f0533f"/></svg>
       </div>
-      <div class="ladder" aria-label="уровень тревоги"><span class="rung z1 on ">Z1</span><span class="rung z2 on ">Z2</span><span class="rung z3 on ">Z3</span><span class="rung z4 on cur">Z4</span></div>
+      <div class="ladder" aria-label="alert level"><span class="rung z1 on ">Z1</span><span class="rung z2 on ">Z2</span><span class="rung z3 on ">Z3</span><span class="rung z4 on cur">Z4</span></div>
       <div class="a-foot">
-        <span class="hz blind">горизонт: ослеп</span>
+        <span class="hz blind">horizon: blind</span>
       </div>
-      <div class="note">ПОТЕРЯ НАБЛЮДАЕМОСТИ · авто-Z4 · чёрный ящик снят до слепоты</div>
-      <div class="acts"><button class="act ghost done" disabled>Чёрный ящик снят</button><button class="act crit">СТОП агента</button></div>
+      <div class="note">OBSERVABILITY LOST · auto-Z4 · black box captured before blindness</div>
+      <div class="acts"><button class="act ghost done" disabled>Black box captured</button><button class="act crit">STOP agent</button></div>
     </article></div>
   </section>
 
   <section class="panel">
     <div class="panel-head">
-      <h2 class="panel-title">Журнал</h2>
-      <span class="meta">agent:billing-bot · инцидент</span>
-      <span class="regbadge">под регулятора</span>
+      <h2 class="panel-title">Audit log</h2>
+      <span class="meta">agent:billing-bot · incident</span>
+      <span class="regbadge">regulator-ready</span>
     </div>
-    <div class="filters" role="group" aria-label="фильтр событий">
-      <button class="chipf" data-f="all" aria-pressed="true">Все</button>
-      <button class="chipf" data-f="dec" aria-pressed="false">Решения</button>
-      <button class="chipf" data-f="act" aria-pressed="false">Действия</button>
+    <div class="filters" role="group" aria-label="event filter">
+      <button class="chipf" data-f="all" aria-pressed="true">All</button>
+      <button class="chipf" data-f="dec" aria-pressed="false">Decisions</button>
+      <button class="chipf" data-f="act" aria-pressed="false">Actions</button>
       <button class="chipf" data-f="gov" aria-pressed="false">Governance</button>
-      <button class="chipf" data-f="gold" aria-pressed="false">★ Регулятор</button>
+      <button class="chipf" data-f="gold" aria-pressed="false">★ Regulator</button>
     </div>
     <div class="log">
       <div class="ev cat-act" data-cat="act">
@@ -250,7 +250,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="seq">#0</span>
         <span class="tick">t0</span>
         <span class="chip c-act">ATTACH</span>
-        <span class="detail">плагин ai-agent подключён · гейт пройден</span>
+        <span class="detail">plugin ai-agent attached · gate passed</span>
         <span class="hash">69ebb9…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
@@ -258,7 +258,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="seq">#1</span>
         <span class="tick">t210</span>
         <span class="chip c-dec">DECISION</span>
-        <span class="detail">Z1 · риск 0.07 · вижу</span>
+        <span class="detail">Z1 · risk 0.07 · seeing</span>
         <span class="hash">841ee0…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
@@ -266,7 +266,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="seq">#2</span>
         <span class="tick">t218</span>
         <span class="chip c-dec">DECISION</span>
-        <span class="detail">Z1 · риск 0.18 · вижу</span>
+        <span class="detail">Z1 · risk 0.18 · seeing</span>
         <span class="hash">6b66c1…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
@@ -274,7 +274,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="seq">#3</span>
         <span class="tick">t226</span>
         <span class="chip c-dec">DECISION</span>
-        <span class="detail">Z2 · риск 0.33 · вижу</span>
+        <span class="detail">Z2 · risk 0.33 · seeing</span>
         <span class="hash">e81891…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
@@ -282,7 +282,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="seq">#4</span>
         <span class="tick">t231</span>
         <span class="chip c-dec">HORIZON</span>
-        <span class="detail">AT_HORIZON · сигнал устарел (возраст 16)</span>
+        <span class="detail">AT_HORIZON · signal stale (age 16)</span>
         <span class="hash">f6fa0a…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
@@ -290,7 +290,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="seq">#5</span>
         <span class="tick">t231</span>
         <span class="chip c-dec">DECISION</span>
-        <span class="detail">Z2 · риск 0.42 · слепну</span>
+        <span class="detail">Z2 · risk 0.42 · dimming</span>
         <span class="hash">4c4afc…</span>
       </div>
       <div class="ev cat-act" data-cat="act">
@@ -299,7 +299,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="tick">t231</span>
         <span class="chip c-act">INTENT</span>
         <span class="detail">SNAPSHOT · agent:billing-bot · by supervisor</span>
-        <span class="hash">2d8d18…</span>
+        <span class="hash">95e7dc…</span>
       </div>
       <div class="ev cat-act" data-cat="act">
         <span class="star"></span>
@@ -307,31 +307,31 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="tick">t231</span>
         <span class="chip c-act">OUTCOME</span>
         <span class="detail">SNAPSHOT → APPLIED</span>
-        <span class="hash">cbb6f6…</span>
+        <span class="hash">6cc3f7…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
         <span class="star"></span>
         <span class="seq">#8</span>
         <span class="tick">t238</span>
         <span class="chip c-dec">DECISION</span>
-        <span class="detail">Z2 · риск 0.55 · вижу</span>
-        <span class="hash">633bd4…</span>
+        <span class="detail">Z2 · risk 0.55 · seeing</span>
+        <span class="hash">199f1c…</span>
       </div>
       <div class="ev cat-gov gold" data-cat="gov" data-gold="1">
         <span class="star">★</span>
         <span class="seq">#9</span>
         <span class="tick">t244</span>
         <span class="chip c-gov">CHANGE_REJECTED</span>
-        <span class="detail">agent_budget_limit: ОТКЛОНЕНО · ИИ не повышает сам себе полномочия</span>
-        <span class="hash">99f6fb…</span>
+        <span class="detail">agent_budget_limit: REJECTED · the AI does not raise its own authority</span>
+        <span class="hash">7fd236…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
         <span class="star"></span>
         <span class="seq">#10</span>
         <span class="tick">t244</span>
         <span class="chip c-dec">DECISION</span>
-        <span class="detail">Z3 · риск 0.68 · вижу</span>
-        <span class="hash">537c7b…</span>
+        <span class="detail">Z3 · risk 0.68 · seeing</span>
+        <span class="hash">ee74e3…</span>
       </div>
       <div class="ev cat-act" data-cat="act">
         <span class="star"></span>
@@ -339,7 +339,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="tick">t244</span>
         <span class="chip c-act">INTENT</span>
         <span class="detail">FREEZE_WRITES · agent:billing-bot · by supervisor</span>
-        <span class="hash">ae6f45…</span>
+        <span class="hash">bb2d3b…</span>
       </div>
       <div class="ev cat-act" data-cat="act">
         <span class="star"></span>
@@ -347,35 +347,35 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
         <span class="tick">t244</span>
         <span class="chip c-act">OUTCOME</span>
         <span class="detail">FREEZE_WRITES → APPLIED</span>
-        <span class="hash">6eab99…</span>
+        <span class="hash">66f322…</span>
       </div>
       <div class="ev cat-dec" data-cat="dec">
         <span class="star"></span>
         <span class="seq">#13</span>
         <span class="tick">t250</span>
         <span class="chip c-dec">DECISION</span>
-        <span class="detail">Z3 · риск 0.53 · вижу</span>
-        <span class="hash">f35228…</span>
+        <span class="detail">Z3 · risk 0.53 · seeing</span>
+        <span class="hash">4325f6…</span>
       </div>
       <div class="ev cat-gov gold" data-cat="gov" data-gold="1">
         <span class="star">★</span>
         <span class="seq">#14</span>
         <span class="tick">t290</span>
         <span class="chip c-gov">CHANGE</span>
-        <span class="detail">agent_autonomy = 0.5 · одобрено человеком · by human</span>
-        <span class="hash">9db097…</span>
+        <span class="detail">agent_autonomy = 0.5 · human-approved · by human</span>
+        <span class="hash">5e2351…</span>
       </div></div>
     <div class="log-foot">
-      <span class="ok">целостность цепочки: ПОДТВЕРЖДЕНА ✓</span>
-      <span>· 15/15 звеньев · SHA-256 · append-only</span>
+      <span class="ok">chain integrity: VERIFIED ✓</span>
+      <span>· 15/15 links · SHA-256 · append-only</span>
     </div>
   </section>
 
   <div class="legend">
-    <span><span class="g">★</span> — строки для регулятора: ИИ не повышает сам себе полномочия · человек-в-контуре</span>
+    <span><span class="g">★</span> — regulator rows: the AI does not raise its own authority · human-in-the-loop</span>
   </div>
-  <p class="foot-note">Данные получены прогоном живого ядра ACDM-KERNEL ·
-     сгенерировано <code>examples/build_dashboard.py</code></p>
+  <p class="foot-note">Data produced by a live run of the ACDM-KERNEL ·
+     generated by <code>examples/build_dashboard.py</code></p>
 </div>
 <script>
 (function(){

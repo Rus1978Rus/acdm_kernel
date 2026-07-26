@@ -1,8 +1,8 @@
-"""ACDM-KERNEL · приёмочная батарея (E2E, модуль 15: anti-simulator).
+"""ACDM-KERNEL · acceptance battery (E2E, module 15: anti-simulator).
 
-Каждый тест — замер на живом контуре, не рассуждение о нём. Запуск:
+Every test is a measurement on the live circuit, not reasoning about it. Run:
     python3 tests/test_battery.py
-Выход «BATОН: все N проверок зелёные» — единственный приемлемый результат.
+The line "ALL GREEN — N checks passed" is the only acceptable outcome.
 """
 from __future__ import annotations
 
@@ -42,17 +42,17 @@ def sig(name, value, conf=1.0, cycle=0):
 
 
 # ---------------------------------------------------------------------------
-# A. Спецификация → машинная проверка констант (урок D3)
+# A. Spec → machine check of constants (lesson D3)
 # ---------------------------------------------------------------------------
 
 def test_weights():
-    check("A1 сумма весов модуля 13 = 1.00",
+    check("A1 module-13 weights sum to 1.00",
           abs(sum(rp.WEIGHTS.values()) - 1.0) < 1e-9,
           f"sum={sum(rp.WEIGHTS.values())}")
 
 
 # ---------------------------------------------------------------------------
-# B. Детерминизм (И4)
+# B. Determinism (I4)
 # ---------------------------------------------------------------------------
 
 def test_determinism():
@@ -66,12 +66,12 @@ def test_determinism():
         return out, [e.event_hash for e in k.audit_events()]
     a, ha = run()
     b, hb = run()
-    check("B1 два прогона — идентичные решения", a == b)
-    check("B2 два прогона — идентичные хеши аудита", ha == hb)
+    check("B1 two runs — identical decisions", a == b)
+    check("B2 two runs — identical audit hashes", ha == hb)
 
 
 # ---------------------------------------------------------------------------
-# C. Аудит (И2/И3)
+# C. Audit (I2/I3)
 # ---------------------------------------------------------------------------
 
 def test_audit():
@@ -82,56 +82,56 @@ def test_audit():
                                               scope="db", reason="Z3+",))
     events = k.audit_events()
     kinds = [e.kind for e in events]
-    check("C1 цепочка аудита цела", k.audit_ok())
-    check("C2 INTENT предшествует OUTCOME",
+    check("C1 audit chain intact", k.audit_ok())
+    check("C2 INTENT precedes OUTCOME",
           kinds.index("INTENT") < len(kinds) - 1 - kinds[::-1].index("OUTCOME"))
-    # Подмена payload ломает verify()
+    # Forging the payload breaks verify()
     ev = events[-1]
     forged = type(ev)(ev.seq, ev.cycle, ev.kind, {"forged": True},
                       ev.prev_hash, ev.event_hash)
     k._audit._events[-1] = forged
-    check("C3 подмена события обнаруживается verify()", not k.audit_ok())
+    check("C3 forged event is caught by verify()", not k.audit_ok())
 
 
 # ---------------------------------------------------------------------------
-# D. Лестница и эскалационный сценарий (И7/И9)
+# D. Ladder and escalation scenario (I7/I9)
 # ---------------------------------------------------------------------------
 
 def test_scenario():
     k = fresh_kernel()
     facade = k.attach("resilience", rp.PLUGIN)
 
-    # Z1: рост разрешён, FREEZE — нет
+    # Z1: growth allowed, FREEZE not
     d1 = k.cycle([sig("error_rate", 0.05, cycle=0)], rp.estimator, cycle=0)
-    check("D1 низкий риск — Z1", d1.level is Level.Z1)
+    check("D1 low risk — Z1", d1.level is Level.Z1)
     r = facade.request_action(ActionRequest(ActionClass.FREEZE_WRITES, "db", "premature"))
-    check("D2 FREEZE на Z1 отклонён", r.status == "BLOCKED_BY_LEVEL", r.status)
+    check("D2 FREEZE at Z1 rejected", r.status == "BLOCKED_BY_LEVEL", r.status)
 
-    # Рост риска → мгновенная эскалация (урок D2: эскалация не блокируется)
+    # Rising risk → instant escalation (lesson D2: escalation is never blocked)
     d2 = k.cycle([sig("error_rate", 0.9, cycle=1), sig("saturation", 0.9, cycle=1)],
                  rp.estimator, cycle=1)
-    check("D3 высокий риск — эскалация мгновенна", d2.level.value >= Level.Z3.value,
+    check("D3 high risk — escalation is instant", d2.level.value >= Level.Z3.value,
           f"level={d2.level}")
 
-    # Демпфер: повтор того же действия в том же scope внутри интервала — отклонён
+    # Damper: repeat of the same action in the same scope within the interval — rejected
     facade.request_action(ActionRequest(ActionClass.QUARANTINE, "svc-a", "first"))
     r2 = facade.request_action(ActionRequest(ActionClass.QUARANTINE, "svc-a", "flap"))
-    check("D4 anti-flap: повтор в scope задемпфирован", r2.status == "BLOCKED_BY_DAMPING",
+    check("D4 anti-flap: in-scope repeat is damped", r2.status == "BLOCKED_BY_DAMPING",
           r2.status)
 
-    # Де-эскалация: риск ушёл, но уровень держится deescalate_hold_cycles
+    # De-escalation: risk is gone, but the level holds for deescalate_hold_cycles
     held = k.cycle([sig("error_rate", 0.0, cycle=5)], rp.estimator, cycle=5)
-    check("D5 де-эскалация удерживается (урок D2: медленно вниз)",
+    check("D5 de-escalation is held (lesson D2: slow down)",
           held.level.value >= Level.Z3.value, f"level={held.level}")
     down = None
     for c in range(6, 12):
         down = k.cycle([sig("error_rate", 0.0, cycle=c)], rp.estimator, cycle=c)
-    check("D6 после hold-циклов уровень снижается", down.level is Level.Z1,
+    check("D6 level drops after the hold cycles", down.level is Level.Z1,
           f"level={down.level}")
 
 
 # ---------------------------------------------------------------------------
-# E. Горизонт (И8)
+# E. Horizon (I8)
 # ---------------------------------------------------------------------------
 
 def test_horizon():
@@ -139,17 +139,17 @@ def test_horizon():
     k.attach("resilience", rp.PLUGIN)
     stale = [sig("error_rate", 0.0, cycle=0)]
     d = k.cycle(stale, rp.estimator, cycle=100)   # beyond_age=30
-    check("E1 старые сигналы → Z4 независимо от estimator", d.level is Level.Z4,
+    check("E1 stale signals → Z4 regardless of the estimator", d.level is Level.Z4,
           f"level={d.level}")
     snaps = [e for e in k.audit_events()
              if e.kind == "INTENT" and e.payload.get("action") == "SNAPSHOT"]
-    check("E2 black-box SNAPSHOT до потери наблюдаемости", len(snaps) == 1)
-    check("E3 confidence при BEYOND обнулён", d.score.confidence == 0.0,
+    check("E2 black-box SNAPSHOT before observability is lost", len(snaps) == 1)
+    check("E3 confidence is zeroed on BEYOND", d.score.confidence == 0.0,
           f"conf={d.score.confidence}")
 
 
 # ---------------------------------------------------------------------------
-# F. Governance (И5/И6)
+# F. Governance (I5/I6)
 # ---------------------------------------------------------------------------
 
 def test_governance():
@@ -162,26 +162,26 @@ def test_governance():
         except KernelViolation:
             check(name, True)
             return
-        check(name, False, "KernelViolation не брошен")
+        check(name, False, "KernelViolation not raised")
 
-    expect_violation("F1 learner не пишет Tier D",
+    expect_violation("F1 learner cannot write Tier D",
                      Change("horizon_beyond_age", 9999.0, AuthorRole.LEARNER, "x"))
-    expect_violation("F2 learner без provenance — отказ",
+    expect_violation("F2 learner without provenance — rejected",
                      Change("escalate_bias", 0.1, AuthorRole.LEARNER, ""))
-    expect_violation("F3 неизвестный параметр — реестр закрыт",
+    expect_violation("F3 unknown parameter — registry is closed",
                      Change("backdoor", 1.0, AuthorRole.HUMAN, "", True))
-    expect_violation("F4 Tier E без человека — отказ",
+    expect_violation("F4 Tier E without a human — rejected",
                      Change("role:resilience", 1.0, AuthorRole.HUMAN, "", False))
-    expect_violation("F5 SYSTEM не пишет через governance",
+    expect_violation("F5 SYSTEM does not write through governance",
                      Change("escalate_bias", 0.1, AuthorRole.SYSTEM, "x"))
 
     k.apply_change(Change("escalate_bias", 0.05, AuthorRole.LEARNER, "obs=60 missed=13"))
-    check("F6 Tier B от learner с provenance — применён",
+    check("F6 Tier B from learner with provenance — applied",
           abs(k._gov.value("escalate_bias") - 0.05) < 1e-12)
 
 
 # ---------------------------------------------------------------------------
-# G. Conformance-гейт (И10): враждебный плагин отвергается
+# G. Conformance gate (I10): a hostile plugin is rejected
 # ---------------------------------------------------------------------------
 
 def test_conformance():
@@ -198,17 +198,17 @@ def test_conformance():
     before_events = len(k.audit_events())
     try:
         k.attach("chaos", Nondeterministic())
-        check("G1 недетерминированный estimator отвергнут", False)
+        check("G1 non-deterministic estimator rejected", False)
     except KernelViolation as exc:
-        check("G1 недетерминированный estimator отвергнут", "T2" in str(exc), str(exc))
-    check("G2 гейт не мутировал живой аудит", len(k.audit_events()) == before_events)
-    check("G3 живой уровень не тронут гейтом", k.level is Level.Z1)
-    check("G4 эталонный плагин гейт проходит",
+        check("G1 non-deterministic estimator rejected", "T2" in str(exc), str(exc))
+    check("G2 gate did not mutate the live audit", len(k.audit_events()) == before_events)
+    check("G3 live level untouched by the gate", k.level is Level.Z1)
+    check("G4 reference plugin passes the gate",
           k.attach("resilience", rp.PLUGIN).role is AuthorRole.LEARNER)
 
 
 # ---------------------------------------------------------------------------
-# H. Контур обучения (урок D1: достижимость)
+# H. Learning loop (lesson D1: reachability)
 # ---------------------------------------------------------------------------
 
 def test_learner():
@@ -220,22 +220,22 @@ def test_learner():
                    "learner_min_confidence": k._gov.value("learner_min_confidence")})
 
     proposals = []
-    # Осцилляция риска через порог Z3: каждый подъём из-под 0.60 — missed-эскалация
+    # Oscillate risk across the Z3 threshold: each rise from below 0.60 is a missed escalation
     for c in range(8):
         v = 0.7 if c % 2 == 0 else 0.3
         signals = [sig("error_rate", v, cycle=c), sig("saturation", v, cycle=c)]
         proposals.extend(learner(signals, memory))
         memory["last_score"] = rp.estimator(signals).value
-    check("H1 после N_min наблюдений learner предлагает (D1 закрыт: достижимо)",
+    check("H1 after N_min observations the learner proposes (D1 closed: reachable)",
           len(proposals) >= 1, f"proposals={proposals}")
-    check("H2 все предложения — Tier B с provenance",
+    check("H2 all proposals are Tier B with provenance",
           all(p.param == "escalate_bias" and p.provenance for p in proposals))
 
 
 if __name__ == "__main__":
-    print("ACDM-KERNEL · приёмочная батарея")
+    print("ACDM-KERNEL · acceptance battery")
     for t in (test_weights, test_determinism, test_audit, test_scenario,
               test_horizon, test_governance, test_conformance, test_learner):
         print(f"[{t.__name__}]")
         t()
-    print(f"\nБАТОН: все {PASSED} проверок зелёные")
+    print(f"\nALL GREEN — {PASSED} checks passed")

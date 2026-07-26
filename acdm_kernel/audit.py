@@ -1,12 +1,12 @@
-"""ACDM-KERNEL · аудит-хребет (И3).
+"""ACDM-KERNEL · audit spine (I3).
 
-Append-only журнал с хеш-цепочкой: каждое событие содержит хеш предыдущего.
-Подмена или вырезание события ломает цепочку — verify() это видит.
+An append-only log with a hash chain: every event carries the hash of the
+previous one. Forging or excising an event breaks the chain — verify() sees it.
 
-Правила:
-- записи только добавляются (нет update/delete API в принципе);
-- время — логический цикл, не wall-clock (детерминизм, И4);
-- И2 упорядочивание: INTENT действия пишется ДО исполнения, OUTCOME — после.
+Rules:
+- entries are only appended (there is no update/delete API at all);
+- time is a logical cycle, not wall-clock (determinism, I4);
+- I2 ordering: an action's INTENT is written BEFORE execution, OUTCOME after.
 """
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ class AuditSpine:
         return ev
 
     def events(self) -> List[AuditEvent]:
-        return list(self._events)          # копия: снаружи журнал не мутируют
+        return list(self._events)          # a copy: the log is never mutated from outside
 
     def verify(self) -> bool:
         prev = self.GENESIS

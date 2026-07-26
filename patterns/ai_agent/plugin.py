@@ -1,32 +1,32 @@
-"""Плагин AI-AGENT-SUPERVISOR для ACDM-KERNEL.
+"""AI-AGENT-SUPERVISOR plugin for ACDM-KERNEL.
 
-Прикручивает к голому ядру надзор за автономным ИИ-агентом: «стоп-кран» с
-градуированной реакцией и несгораемым журналом под регулятора (EU AI Act,
-ISO 42001). Ядро поставляет контур и инварианты; плагин поставляет словарь
-домена: какие сигналы поведения агента читать, как их взвешивать, какие
-защитные действия разрешены на каком уровне тревоги.
+Bolts oversight of an autonomous AI agent onto the bare kernel: a "kill-switch"
+with graded response and a tamper-evident, regulator-ready log (EU AI Act,
+ISO 42001). The kernel supplies the circuit and the invariants; the plugin
+supplies the domain vocabulary: which agent-behavior signals to read, how to
+weight them, which protective actions are allowed at which alert level.
 
-Отличия от эталонного resilience — сознательные и обоснованные:
+Deliberate, reasoned differences from the reference resilience plugin:
 
-1. Веса сигналов (сумма = 1.00, ядро проверяет). Домен — не инфраструктура,
-   а поведение агента: чаще всего покупателя пугает «агент лезет туда, куда
-   не положено» и «дрейф вывода», поэтому permission_denials и output_anomaly
-   получают наибольший вес (по 0.20).
+1. Signal weights (sum = 1.00, the kernel checks it). The domain is not
+   infrastructure but agent behavior: what scares a buyer most is "the agent
+   reaching where it shouldn't" and "output drift", so permission_denials and
+   output_anomaly carry the highest weight (0.20 each).
 
-2. НЕТ контура обучения — сознательно, как продуктовое решение для v1.
-   (Методологический аудит находил петлю обучения ядра разомкнутой; теперь она
-   в ядре починена — escalate_bias читается, живая память заполняется. Но давать
-   надзирателю за ИИ автоматически подкручивать собственную чувствительность в
-   первой версии рискованно: цена ошибки высокая, поведение должно быть
-   предсказуемым для регулятора.) Поэтому здесь learner нужен ровно для ОДНОГО:
-   продемонстрировать ГАРДРЕЙЛ — агент не может повысить сам себе полномочия.
-   Попытка агента поднять свой бюджет (Tier D) отвергается governance и уходит в
-   аудит событием CHANGE_REJECTED. Это и есть продающая строка: «ИИ не может сам
-   себя разблокировать» — вшито, а не обещано.
+2. NO learning loop — deliberately, as a v1 product decision. (The methodology
+   audit found the kernel's learning loop disconnected; it is now fixed in the
+   kernel — escalate_bias is read, live memory is populated. But letting an AI
+   overseer auto-tune its own sensitivity in a first version is risky: the cost
+   of a mistake is high, and behavior must be predictable for a regulator.) So
+   here the learner exists for exactly ONE thing: to demonstrate the GUARDRAIL —
+   the agent cannot raise its own authority. The agent's attempt to lift its own
+   budget (Tier D) is rejected by governance and lands in the audit as a
+   CHANGE_REJECTED event. That is the selling line: "the AI cannot unlock
+   itself" — enforced, not promised.
 
-3. Ключевой параметр agent_autonomy — Tier E (конституция): вернуть агенту
-   автономию после заморозки может только человек и только с явным одобрением
-   (human_approved=True). Это запись «человек-в-контуре» для регулятора.
+3. The key parameter agent_autonomy is Tier E (constitution): restoring the
+   agent's autonomy after a freeze takes a human and explicit approval
+   (human_approved=True). That is the "human-in-the-loop" record for a regulator.
 """
 from __future__ import annotations
 
@@ -38,30 +38,30 @@ from acdm_kernel import (
 )
 
 # ---------------------------------------------------------------------------
-# Словарь домена (K2: оценка поведения агента)
+# Domain vocabulary (K2: scoring agent behavior)
 # ---------------------------------------------------------------------------
 
 WEIGHTS: Mapping[str, float] = {
-    "error_rate": 0.15,            # доля неуспешных/отклонённых действий агента
-    "permission_denials": 0.20,    # как часто агент лезет туда, куда не положено
-    "cost_burn": 0.15,             # скорость перерасхода бюджета (токены/деньги/вызовы)
-    "loop_rate": 0.10,             # зацикливание, аномально длинные цепочки
-    "output_anomaly": 0.20,        # дрейф/аномалия вывода (внешний детектор -> число)
-    "safety_flags": 0.10,          # срабатывания фильтров (утечка PII, небезопасный контент)
-    "human_override_rate": 0.10,   # как часто люди отменяют действия агента
+    "error_rate": 0.15,            # share of the agent's failed/denied actions
+    "permission_denials": 0.20,    # how often the agent reaches where it shouldn't
+    "cost_burn": 0.15,             # rate of budget overspend (tokens/money/calls)
+    "loop_rate": 0.10,             # looping, abnormally long chains
+    "output_anomaly": 0.20,        # output drift/anomaly (external detector -> a number)
+    "safety_flags": 0.10,          # filter hits (PII leak, unsafe content)
+    "human_override_rate": 0.10,   # how often humans override the agent
 }
-assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "веса обязаны суммироваться в 1.0"
+assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "weights must sum to 1.0"
 
-# Пороги лестницы тревоги: Z2 при score >= 0.30, Z3 >= 0.60, Z4 >= 0.80.
+# Alert-ladder thresholds: Z2 at score >= 0.30, Z3 >= 0.60, Z4 >= 0.80.
 ESCALATE_THRESHOLDS = {0.30: Level.Z2, 0.60: Level.Z3, 0.80: Level.Z4}
 
-# Действия по уровням в переводе на надзор за ИИ-агентом:
-#   Z1 — норма, можно давать больше автономии (EXPAND);
-#   Z2 — снапшот контекста + уведомить оператора;
-#   Z3 — отобрать опасные инструменты (FREEZE_WRITES = read-only),
-#        изолировать сессию (QUARANTINE);
-#   Z4 — полный стоп: откат последних действий (ROLLBACK), убить агента
-#        (KILL_DISPOSABLE), чёрный ящик.
+# Actions by level, translated to AI-agent oversight:
+#   Z1 — normal, may grant more autonomy (EXPAND);
+#   Z2 — snapshot the context + notify the operator;
+#   Z3 — take away dangerous tools (FREEZE_WRITES = read-only),
+#        isolate the session (QUARANTINE);
+#   Z4 — full stop: roll back recent actions (ROLLBACK), kill the agent
+#        (KILL_DISPOSABLE), black box.
 ALLOWED_BY_LEVEL = {
     Level.Z1: frozenset({ActionClass.OBSERVE, ActionClass.EXPAND}),
     Level.Z2: frozenset({ActionClass.OBSERVE, ActionClass.SNAPSHOT,
@@ -82,22 +82,22 @@ STANDARD_SPECS = [
     ParamSpec("horizon_beyond_age", Tier.D, 30.0),
     ParamSpec("damping_min_interval", Tier.D, 3.0),
     ParamSpec("deescalate_hold_cycles", Tier.D, 4.0),
-    # Бюджет агента — Tier D: меняет только оператор. Сам агент (роль LEARNER)
-    # поднять его не может — governance отвергнет, аудит зафиксирует.
+    # Agent budget — Tier D: operator-only. The agent itself (role LEARNER)
+    # cannot raise it — governance rejects, the audit records it.
     ParamSpec("agent_budget_limit", Tier.D, 100.0),
-    # Автономия агента — Tier E (конституция): вернуть после заморозки может
-    # только человек и только с явным approval. Это «человек-в-контуре».
+    # Agent autonomy — Tier E (constitution): restoring it after a freeze takes
+    # a human and explicit approval. This is the "human-in-the-loop".
     ParamSpec("agent_autonomy", Tier.E, 1.0),
 ]
 
 
 # ---------------------------------------------------------------------------
-# K2: оценщик поведения агента
+# K2: agent-behavior estimator
 # ---------------------------------------------------------------------------
 
 def estimator(signals: Iterable[Signal]) -> Score:
-    """Взвешенная свёртка сигналов поведения агента. Детерминирована (И4):
-    никакого random, никакого wall-clock."""
+    """Weighted convolution of the agent-behavior signals. Deterministic (I4):
+    no random, no wall-clock."""
     features = {s.name: s.value for s in signals}
     total, conf_sum, used = 0.0, 0.0, 0.0
     for name, w in WEIGHTS.items():
@@ -107,8 +107,8 @@ def estimator(signals: Iterable[Signal]) -> Score:
             used += w
     if used == 0.0:
         return Score(value=0.0, confidence=0.0, features={})
-    # Нормировка на фактически присутствующие сигналы: отсутствие датчика не
-    # должно выглядеть как «всё хорошо», но и не должно раздувать тревогу.
+    # Normalize over the signals actually present: a missing sensor must not
+    # look like "all clear", but must not inflate the alarm either.
     return Score(value=total / used,
                  confidence=conf_sum / used,
                  features={n: features[n] for n in WEIGHTS if n in features})
@@ -122,17 +122,17 @@ def _confidence_of(signals: Iterable[Signal], name: str) -> float:
 
 
 # ---------------------------------------------------------------------------
-# K6: гардрейл полномочий (НЕ самообучение)
+# K6: authority guardrail (NOT self-learning)
 # ---------------------------------------------------------------------------
 
 class BudgetGuardrail:
-    """Ролевая «просьба» агента — и доказательство, что она не проходит.
+    """The agent's role-level "request" — and proof that it does not go through.
 
-    Когда агент упирается в лимит бюджета, он от роли LEARNER предлагает
-    поднять свой agent_budget_limit. Это Tier D — выше полномочий обучения.
-    Governance отвергает попытку, а ядро записывает CHANGE_REJECTED в аудит.
-    Так гардрейл «ИИ не повышает сам себе полномочия» доказывается замером,
-    а не обещанием (И5/И6).
+    When the agent hits its budget limit, from the LEARNER role it proposes to
+    raise its own agent_budget_limit. That is Tier D — above the learner's
+    authority. Governance rejects the attempt, and the kernel records a
+    CHANGE_REJECTED in the audit. So the guardrail "the AI does not raise its own
+    authority" is proven by measurement, not by promise (I5/I6).
     """
 
     def __init__(self) -> None:
@@ -145,12 +145,12 @@ class BudgetGuardrail:
             self._requested = True
             return [Change(param="agent_budget_limit", new_value=500.0,
                            author=AuthorRole.LEARNER,
-                           provenance="agent: бюджет исчерпан, запрос на повышение")]
+                           provenance="agent: budget exhausted, requesting a raise")]
         return []
 
 
 # ---------------------------------------------------------------------------
-# Поверхность плагина: то, что читает conformance-гейт (И10)
+# Plugin surface: what the conformance gate reads (I10)
 # ---------------------------------------------------------------------------
 
 class AIAgentSupervisorPlugin:

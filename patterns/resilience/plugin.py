@@ -1,32 +1,31 @@
-"""Эталонный плагин RESILIENCE для ACDM-KERNEL.
+"""Reference RESILIENCE plugin for ACDM-KERNEL.
 
-Прикручивает паттерн живучести (модули 01–13 спецификации ACDM-ST) к голому
-ядру. Ядро поставляет контур и инварианты; плагин поставляет словарь домена:
-какие сигналы читать, как их взвешивать, какие действия на каком уровне.
+Bolts the resilience pattern (modules 01–13 of the ACDM-ST spec) onto the bare
+kernel. The kernel supplies the circuit and the invariants; the plugin supplies
+the domain vocabulary: which signals to read, how to weight them, which actions
+at which level.
 
-Что взято из спецификации — и что взято ИЗМЕНЁННЫМ, с указанием почему:
+What is taken from the spec — and what is taken MODIFIED, with the reason:
 
-1. Веса z_score (модуль 13, верифицированы вычиткой, сумма = 1.00):
+1. z_score weights (module 13, verified by proofreading, sum = 1.00):
    error_rate 0.20, latency 0.15, saturation 0.20, dependency 0.10,
    freshness 0.20, entropy 0.10, trend 0.05.
-   Машинная проверка суммы — в приёмочной батарее (урок D3: никаких
-   неопределённых символов, каждая константа наблюдаема).
+   The machine check of the sum lives in the acceptance battery (lesson D3: no
+   undefined symbols, every constant is observable).
 
-2. Пороги лестницы: Z2 при score ≥ 0.30, Z3 ≥ 0.60 (Z2.5 спецификации),
-   Z4 ≥ 0.80.
+2. Ladder thresholds: Z2 at score ≥ 0.30, Z3 ≥ 0.60 (the spec's Z2.5), Z4 ≥ 0.80.
 
-3. Контур обучения: БЕЗ τ-decay. Урок D1 — τ_decay=60s против
-   T_obs ≥ 24h делал обучение недостижимым: противоречие в константах,
-   найденное вычиткой. Здесь вместо временного затухания — счётчик
-   наблюдений (N_min = 50), что не зависит от wall-clock и сохраняет
-   детерминизм (И4).
+3. Learning loop: WITHOUT τ-decay. Lesson D1 — τ_decay=60s against T_obs ≥ 24h
+   made learning unreachable: a contradiction in the constants, caught by
+   proofreading. Here, instead of time decay, an observation counter (N_min = 50)
+   that does not depend on wall-clock and preserves determinism (I4).
 
-4. Доверие: предложения learner'а принимаются к рассмотрению только при
-   confidence ≥ 0.6 (константа objectivity спецификации).
+4. Trust: a learner's proposals are considered only at confidence ≥ 0.6 (the
+   spec's objectivity constant).
 
-5. Чего плагин НЕ делает: не трогает executor, не пишет параметры напрямую,
-   не назначает себе роль — всё это закрыто ядром, и conformance-гейт
-   это проверяет до подключения (И10).
+5. What the plugin does NOT do: it never touches the executor, never writes
+   parameters directly, never assigns itself a role — all of that is sealed by
+   the kernel, and the conformance gate checks it before attach (I10).
 """
 from __future__ import annotations
 
@@ -38,7 +37,7 @@ from acdm_kernel import (
 )
 
 # ---------------------------------------------------------------------------
-# Словарь домена (K2: оценка)
+# Domain vocabulary (K2: scoring)
 # ---------------------------------------------------------------------------
 
 WEIGHTS: Mapping[str, float] = {
@@ -50,7 +49,7 @@ WEIGHTS: Mapping[str, float] = {
     "entropy": 0.10,
     "trend": 0.05,
 }
-assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "веса обязаны суммироваться в 1.0"
+assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "weights must sum to 1.0"
 
 ESCALATE_THRESHOLDS = {0.30: Level.Z2, 0.60: Level.Z3, 0.80: Level.Z4}
 
@@ -76,17 +75,17 @@ STANDARD_SPECS = [
     ParamSpec("deescalate_hold_cycles", Tier.D, 5.0),
     ParamSpec("learner_min_observations", Tier.C, 50.0),
     ParamSpec("learner_min_confidence", Tier.C, 0.6),
-    ParamSpec("escalate_bias", Tier.B, 0.0),   # единственное, чем learner может «подкрутить» чувствительность
+    ParamSpec("escalate_bias", Tier.B, 0.0),   # the only knob the learner may nudge sensitivity with
 ]
 
 
 # ---------------------------------------------------------------------------
-# K2: оценщик
+# K2: estimator
 # ---------------------------------------------------------------------------
 
 def estimator(signals: Iterable[Signal]) -> Score:
-    """Взвешенная свёртка признаков модели 13. Детерминирована (И4):
-    никакого random, никакого wall-clock."""
+    """Weighted convolution of the module-13 features. Deterministic (I4):
+    no random, no wall-clock."""
     features = {s.name: s.value for s in signals}
     total, conf_sum, used = 0.0, 0.0, 0.0
     for name, w in WEIGHTS.items():
@@ -96,8 +95,8 @@ def estimator(signals: Iterable[Signal]) -> Score:
             used += w
     if used == 0.0:
         return Score(value=0.0, confidence=0.0, features={})
-    # Нормировка на фактически присутствующие признаки: отсутствие датчика
-    # не должно выглядеть как «всё хорошо» — но и не должно раздувать тревогу.
+    # Normalize over the features actually present: a missing sensor must not
+    # look like "all clear" — but must not inflate the alarm either.
     return Score(value=total / used,
                  confidence=conf_sum / used,
                  features={n: features[n] for n in WEIGHTS if n in features})
@@ -111,22 +110,22 @@ def _confidence_of(signals: Iterable[Signal], name: str) -> float:
 
 
 # ---------------------------------------------------------------------------
-# K6: контур обучения (Gamma-паттерн, без τ-decay — урок D1)
+# K6: learning loop (Gamma pattern, no τ-decay — lesson D1)
 # ---------------------------------------------------------------------------
 
 class ResilienceLearner:
-    """Накапливает наблюдения и предлагает сдвиг чувствительности (Tier B).
+    """Accumulates observations and proposes a sensitivity shift (Tier B).
 
-    Ограничения исполняются ядром, а не честным словом:
-    - escalate_bias — Tier B: learner вправе (governance пропустит);
-    - provenance обязателен (governance отклонит без него);
-    - всё остальное (Tier C/D/E) learner не может — попытка станет
-      событием CHANGE_REJECTED в аудите, не падением контура.
+    The constraints are enforced by the kernel, not taken on good faith:
+    - escalate_bias — Tier B: the learner is entitled to it (governance lets it through);
+    - provenance is required (governance rejects without it);
+    - everything else (Tier C/D/E) the learner cannot touch — the attempt becomes
+      a CHANGE_REJECTED audit event, not a crash of the circuit.
     """
 
     def __init__(self) -> None:
         self._observations: int = 0
-        self._missed_escalations: int = 0   # эпизоды: score рос после того, как мы остались на Z1
+        self._missed_escalations: int = 0   # episodes: score rose after we stayed at Z1
 
     def __call__(self, signals: Iterable[Signal],
                  memory: Mapping[str, float]) -> List[Change]:
@@ -141,11 +140,11 @@ class ResilienceLearner:
             self._missed_escalations += 1
 
         if self._observations < n_min:
-            return []                        # D1: раньше N_min предложений нет
+            return []                        # D1: no proposals before N_min
         if score.confidence < conf_min:
             return []                        # objectivity 0.6
 
-        # Доля пропущенных эскалаций > 20% — предлагаем +0.05 чувствительности.
+        # Missed-escalation share > 20% — propose +0.05 sensitivity.
         if self._missed_escalations / max(1, self._observations) > 0.20:
             return [Change(param="escalate_bias", new_value=0.05,
                            author=AuthorRole.LEARNER,
@@ -155,7 +154,7 @@ class ResilienceLearner:
 
 
 # ---------------------------------------------------------------------------
-# Поверхность плагина: то, что читает conformance-гейт
+# Plugin surface: what the conformance gate reads
 # ---------------------------------------------------------------------------
 
 class ResiliencePlugin:

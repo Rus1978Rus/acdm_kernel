@@ -1,86 +1,105 @@
-# ACDM-KERNEL — голая архитектура в коде
+# ACDM-KERNEL — bare architecture in code
 
-Контур из семи элементов (K1–K7), где инварианты И1–И10 **исполняются кодом**,
-а не документируются для исполнителей. Паттерны (живучесть, безопасность,
-стоимость, соблюдение норм) прикручиваются плагинами через conformance-гейт.
-Ядро о паттернах ничего не знает; плагины о механике контура знать не обязаны.
+A seven-element circuit (K1–K7) where invariants I1–I10 are **enforced by code**,
+not documented for operators to follow. Patterns (resilience, security, cost,
+compliance) bolt on as plugins through a conformance gate. The kernel knows
+nothing about patterns; a plugin need not know the mechanics of the circuit.
 
 ```
-acdm_kernel/          ядро (доменно-нейтрально)
-  types.py            Signal / Score / Change / Level / Tier / KernelViolation
-  audit.py            append-only хребет с хеш-цепочкой          (И2, И3)
-  governance.py       единственная дверь к параметрам            (И5, И6)
-  horizon.py          модель собственной наблюдаемости           (И8)
-  damping.py          anti-flap + удержание де-эскалации         (И9)
-  kernel.py           контур K1–K7, лестница, фасад плагина      (И1, И4, И7)
-  conformance.py      гейт подключения на изолированном probe    (И10)
-patterns/resilience/  эталонный плагин живучести (модули 01–13 спецификации)
-tests/test_battery.py приёмочная батарея: 27 замеров на живом контуре
+acdm_kernel/            kernel (domain-neutral)
+  types.py             Signal / Score / Change / Level / Tier / KernelViolation
+  audit.py             append-only spine with a hash chain          (I2, I3)
+  governance.py        the single door to parameters                (I5, I6)
+  horizon.py           model of the kernel's own observability      (I8)
+  damping.py           anti-flap + de-escalation hold               (I9)
+  kernel.py            circuit K1–K7, the ladder, the plugin facade (I1, I4, I7)
+  conformance.py       attach gate on an isolated probe             (I10)
+patterns/resilience/   reference resilience plugin (spec modules 01–13)
+patterns/ai_agent/     AI-agent supervisor plugin (kill-switch + regulator-ready audit)
+examples/              ai_agent_demo.py · build_dashboard.py (+ dashboard.html)
+tests/                 test_battery.py (27) · test_ai_agent.py (14) · test_wiring.py (8)
+legacy/                frozen Russian original (self-contained, runs on its own)
 ```
 
-## Карта: инвариант → код → замер в батарее
+## Map: invariant → code → battery measurement
 
-| Инвариант | Где исполняется | Как измеряется |
+| Invariant | Where it is enforced | How it is measured |
 |---|---|---|
-| И1 исполнитель недостижим для плагина | `_Executor` приватен; у `PluginFacade` нет такого атрибута | conformance T1 |
-| И2 INTENT до исполнения, OUTCOME после | `Kernel.execute` | C2 |
-| И3 аудит append-only, tamper-evident | `AuditSpine` хеш-цепочка | C1, C3 (подмена ловится) |
-| И4 детерминизм (логические циклы, нет wall-clock) | `Signal.cycle`, `canonical_hash` | B1, B2; conformance T2 |
-| И5 контур обучения не повышает себя | `role:*` — Tier E | F4; conformance T5 |
-| И6 тиры полномочий B/C/D/E | `Governance.apply` | F1–F6; conformance T3 |
-| И7 действие вне допуска уровня отклоняется до исполнителя | `Ladder.permits` | D2 |
-| И8 слепота → Z4 + black-box SNAPSHOT, независимо от estimator | `Kernel.cycle` + `HorizonModel` | E1–E3; conformance T4 |
-| И9 эскалация мгновенна и не блокируется; де-эскалация удерживается | `EscalationHold`, `Damper(forced=)` | D3–D6 |
-| И10 нет подключения без conformance-гейта | `Kernel.attach` → probe-ядро | G1–G4 |
+| I1 executor unreachable to the plugin | `_Executor` is private; `PluginFacade` has no such attribute | conformance T1 |
+| I2 INTENT before execution, OUTCOME after | `Kernel.execute` | C2 |
+| I3 audit append-only, tamper-evident | `AuditSpine` hash chain | C1, C3 (forgery is caught) |
+| I4 determinism (logical cycles, no wall-clock) | `Signal.cycle`, `canonical_hash` | B1, B2; conformance T2 |
+| I5 the learning loop cannot promote itself | `role:*` — Tier E | F4; conformance T5 |
+| I6 authority tiers B/C/D/E | `Governance.apply` | F1–F6; conformance T3 |
+| I7 an action outside the level's clearance is rejected before the executor | `Ladder.permits` | D2 |
+| I8 blindness → Z4 + black-box SNAPSHOT, regardless of estimator | `Kernel.cycle` + `HorizonModel` | E1–E3; conformance T4 |
+| I9 escalation is instant and unblockable; de-escalation is held | `EscalationHold`, `Damper(forced=)` | D3–D6 |
+| I10 no attach without the conformance gate | `Kernel.attach` → probe kernel | G1–G4 |
 
-## Уроки спецификации, зашитые в код
+## Spec lessons baked into the code
 
-- **D1 (Gamma недостижима)**: τ_decay=60s против T_obs≥24h — противоречие в
-  константах, найденное вычиткой. Здесь: счётчик наблюдений `N_min=50`
-  вместо временного затухания → достижимость доказана замером H1.
-- **D2 (квота на эскалацию)**: отвергнута. `EscalationHold` никогда не
-  блокирует повышение уровня — только замедляет понижение.
-- **13B (демпфер против безопасности)**: у `Damper.allow` есть `forced=True`
-  для действий самого ядра (SNAPSHOT при BEYOND_HORIZON).
-- **D3 (неопределённые символы χ, freshness_factor)**: каждая константа —
-  наблюдаемый параметр governance или явная формула с машинной проверкой
-  (A1: сумма весов = 1.00 проверяется, не верится).
+- **D1 (Gamma unreachable)**: τ_decay=60s against T_obs≥24h — a contradiction in
+  the constants, caught by proofreading. Here: an observation counter `N_min=50`
+  instead of time decay → reachability proven by measurement H1.
+- **D2 (escalation quota)**: rejected. `EscalationHold` never blocks a level
+  increase — it only slows a decrease.
+- **13B (damper vs safety)**: `Damper.allow` has `forced=True` for the kernel's
+  own actions (SNAPSHOT on BEYOND_HORIZON).
+- **D3 (undefined symbols χ, freshness_factor)**: every constant is either an
+  observable governance parameter or an explicit formula with a machine check
+  (A1: "the weights sum to 1.00" is checked, not trusted).
 
-## Как прикрутить свой паттерн
+## How to bolt on your own pattern
 
 ```python
 from acdm_kernel import Kernel, Level, ActionClass
 from patterns.resilience.plugin import STANDARD_SPECS, LADDER_RESILIENCE, PLUGIN
 
 kernel = Kernel(specs={s.name: s for s in STANDARD_SPECS}, ladder=LADDER_RESILIENCE)
-facade = kernel.attach("resilience", PLUGIN)   # conformance-гейт внутри (И10)
+facade = kernel.attach("resilience", PLUGIN)   # conformance gate inside (I10)
 
 decision = kernel.cycle(signals, PLUGIN.estimator, PLUGIN.learner, cycle=0)
-result = facade.request_action(ActionRequest(ActionClass.FREEZE_WRITES, "db", "причина"))
+result = facade.request_action(ActionRequest(ActionClass.FREEZE_WRITES, "db", "reason"))
 ```
 
-Плагин обязан предоставить: `name`, детерминированный `estimator(signals) -> Score`.
-Опционально: `learner(signals, memory) -> [Change]`. Всё остальное — ядро.
+A plugin must provide: `name`, a deterministic `estimator(signals) -> Score`.
+Optionally: `learner(signals, memory) -> [Change]`. Everything else is the kernel.
 
-Новый домен = новый плагин: свои признаки и веса в estimator, своя лестница
-допусков `Ladder(escalate=..., allowed=...)`, свои ParamSpec. Ядро не меняется.
+A new domain = a new plugin: its own features and weights in the estimator, its
+own clearance ladder `Ladder(escalate=..., allowed=...)`, its own ParamSpec. The
+kernel does not change. See `patterns/ai_agent/` for a second, non-infrastructure
+domain — oversight of an autonomous AI agent — on the same unchanged kernel.
 
-## Честные границы
-
-- **Эталонная реализация, не продакшен**: один процесс, память в RAM, аудит
-  не персистентен. Хеш-цепочка доказывает целостность журнала внутри процесса,
-  а не против внешнего противника с доступом к процессу.
-- **Актуатор — заглушка**: `Kernel(actuator=fn)` — точка подключения реальных
-  исполнителей; ядро гарантирует только допуск и журналирование, не само
-  физическое действие.
-- **Горизонт по возрасту сигналов** — простейшая модель наблюдаемости;
-  спецификация знает 8 состояний, здесь 3 (NORMAL/AT/BEYOND) — урок N3
-  учтён как явное, проверяемое отображение, а не «где-то между модулями».
-- **Детерминизм (И4)** означает: одинаковая последовательность циклов и
-  сигналов → одинаковые решения и аудит. Реальное время намеренно изгнано.
-
-## Запуск приёмки
+## See it run
 
 ```
-python3 tests/test_battery.py     # «БАТОН: все 27 проверок зелёные» — или не принимать
+python3 examples/ai_agent_demo.py      # replays one incident, prints the regulator-ready trace
+python3 examples/build_dashboard.py    # generates examples/dashboard.html (Control panel + Audit log)
 ```
+
+## Honest boundaries
+
+- **Reference implementation, not production**: one process, in-RAM memory,
+  non-persistent audit. The hash chain proves log integrity within the process,
+  not against an external adversary with access to the process.
+- **The actuator is a stub**: `Kernel(actuator=fn)` is the attach point for real
+  executors; the kernel guarantees only clearance and logging, not the physical
+  action itself.
+- **Horizon by signal age** — the simplest observability model; the spec knows
+  8 states, here 3 (NORMAL/AT/BEYOND) — lesson N3 is honored as an explicit,
+  checkable mapping, not "somewhere between the modules".
+- **Determinism (I4)** means: the same sequence of cycles and signals → the same
+  decisions and audit. Real time is deliberately banished.
+
+## Running the acceptance battery
+
+```
+python3 tests/test_battery.py     # "ALL GREEN — 27 checks passed" — or do not ship
+python3 tests/test_ai_agent.py    # AI-agent supervisor — 14 checks
+python3 tests/test_wiring.py      # findings A/B/D wiring regression — 8 checks
+```
+
+---
+
+The original Russian implementation is preserved, frozen and self-contained,
+under [`legacy/`](legacy/) for provenance.

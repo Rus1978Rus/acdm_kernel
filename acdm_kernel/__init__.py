@@ -1,7 +1,7 @@
-"""ACDM-KERNEL — голая архитектура контура (K1–K7), инварианты И1–И10 в коде.
+"""ACDM-KERNEL — the bare circuit architecture (K1–K7), invariants I1–I10 in code.
 
-Паттерны (живучесть, безопасность, стоимость...) прикручиваются плагинами
-через conformance-гейт. Ядро о паттернах ничего не знает.
+Patterns (resilience, security, cost...) bolt on as plugins through the
+conformance gate. The kernel knows nothing about patterns.
 """
 from .types import (
     ActionClass, ActionRequest, ActionResult, AuthorRole, Change, Decision,

@@ -1,14 +1,14 @@
-"""ACDM-KERNEL · горизонт наблюдаемости (И8).
+"""ACDM-KERNEL · observability horizon (I8).
 
-Ядро обязано знать, когда оно перестаёт видеть. Возраст сигналов сравнивается
-с порогами из governance (Tier D — меняет только оператор):
+The kernel must know when it stops seeing. Signal age is compared against
+thresholds from governance (Tier D — operator-only):
 
-- NORMAL:         все сигналы свежи;
-- AT_HORIZON:     хотя бы один старше horizon_warn_age — доверие штрафуется;
-- BEYOND_HORIZON: хотя бы один старше horizon_beyond_age — оценке НЕ ВЕРЯТ,
-                  ядро принудительно уходит в Z4 и делает SNAPSHOT.
+- NORMAL:         every signal is fresh;
+- AT_HORIZON:     at least one is older than horizon_warn_age — confidence is penalized;
+- BEYOND_HORIZON: at least one is older than horizon_beyond_age — the estimate is
+                  NOT TRUSTED; the kernel is forced into Z4 and takes a SNAPSHOT.
 
-Идея ACDM-ST: black-box snapshot ДО потери наблюдаемости, не после.
+The ACDM-ST idea: a black-box snapshot BEFORE observability is lost, not after.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from .types import HorizonState, Signal
 class HorizonModel:
     def __init__(self, warn_age: float, beyond_age: float) -> None:
         if warn_age >= beyond_age:
-            raise ValueError("warn_age должен быть строго меньше beyond_age")
+            raise ValueError("warn_age must be strictly less than beyond_age")
         self.warn_age = warn_age
         self.beyond_age = beyond_age
         self.state = HorizonState.NORMAL
@@ -38,7 +38,7 @@ class HorizonModel:
         return self.state
 
     def confidence_factor(self) -> float:
-        """Штраф к доверию оценки за старые данные (D3: явная формула, не символ)."""
+        """Confidence penalty for stale data (D3: an explicit formula, not a symbol)."""
         return {HorizonState.NORMAL: 1.0,
                 HorizonState.AT_HORIZON: 0.5,
                 HorizonState.BEYOND_HORIZON: 0.0}[self.state]

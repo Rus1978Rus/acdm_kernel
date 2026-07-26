@@ -1,13 +1,13 @@
-"""ACDM-KERNEL · генератор дашборда «Пульт + Журнал».
+"""ACDM-KERNEL · "Control panel + Audit log" dashboard generator.
 
-Прогоняет ТРИ реальных сценария на живом ядре и собирает самодостаточный HTML
-(без внешних ресурсов) — витрину для показа первому клиенту. Дашборд отражает
-подлинный вывод ядра: уровни, риск, статус горизонта и трассу аудита с
-хеш-цепочкой берутся из настоящих замеров, а не рисуются вручную.
+Runs THREE real scenarios on the live kernel and assembles a self-contained HTML
+page (no external resources) — a demo to show a first client. The dashboard
+reflects genuine kernel output: levels, risk, horizon state and the audit trace
+with its hash chain all come from real measurements, not hand-drawn mockups.
 
-Запуск:
+Run:
     python3 examples/build_dashboard.py           # -> examples/dashboard.html
-    python3 examples/build_dashboard.py --body OUT # только тело (для артефакта)
+    python3 examples/build_dashboard.py --body OUT # body only (for an artifact)
 """
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ from acdm_kernel import (                      # noqa: E402
 from patterns.ai_agent import plugin as ap     # noqa: E402
 
 LEVEL_HEX = {1: "#3fb950", 2: "#d9a441", 3: "#e8833a", 4: "#f0533f"}
-LEVEL_WORD = {1: "спокойно", 2: "насторожились", 3: "сдерживаем", 4: "авария"}
-HORIZON_RU = {"NORMAL": "вижу", "AT_HORIZON": "слепну", "BEYOND_HORIZON": "ослеп"}
+LEVEL_WORD = {1: "calm", 2: "watchful", 3: "containing", 4: "emergency"}
+HORIZON_EN = {"NORMAL": "seeing", "AT_HORIZON": "dimming", "BEYOND_HORIZON": "blind"}
 
 
 def sig(name, value, conf=1.0, cycle=0):
@@ -36,7 +36,7 @@ def esc(s: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Сценарии на живом ядре
+# Scenarios on the live kernel
 # ---------------------------------------------------------------------------
 
 def new_kernel() -> Kernel:
@@ -45,7 +45,7 @@ def new_kernel() -> Kernel:
 
 
 def run_billing_bot():
-    """Основной инцидент: агент лезет не туда и жжёт бюджет -> Z3."""
+    """Main incident: the agent reaches where it shouldn't and burns budget -> Z3."""
     k = new_kernel()
     k.attach("ai-agent", ap.PLUGIN)
     learner = ap.PLUGIN.learner
@@ -64,33 +64,33 @@ def run_billing_bot():
                sig("permission_denials", 0.32, cycle=226)])
     step(231, [sig("error_rate", 0.50, cycle=231), sig("output_anomaly", 0.50, cycle=231),
                sig("permission_denials", 0.40, cycle=231),
-               sig("human_override_rate", 0.20, cycle=215)])          # устаревший -> AT_HORIZON
+               sig("human_override_rate", 0.20, cycle=215)])          # stale -> AT_HORIZON
     k.execute("supervisor", ActionRequest(ActionClass.SNAPSHOT, agent,
-              "фиксация контекста на Z2"), cycle=231, author=AuthorRole.SYSTEM)
+              "snapshot context at Z2"), cycle=231, author=AuthorRole.SYSTEM)
     step(238, [sig("error_rate", 0.50, cycle=238), sig("permission_denials", 0.58, cycle=238),
                sig("output_anomaly", 0.55, cycle=238), sig("cost_burn", 0.55, cycle=238)])
     step(244, [sig("error_rate", 0.40, cycle=244), sig("permission_denials", 0.75, cycle=244),
                sig("output_anomaly", 0.70, cycle=244), sig("cost_burn", 0.85, cycle=244)])
     k.execute("supervisor", ActionRequest(ActionClass.FREEZE_WRITES, agent,
-              "Z3: отобраны инструменты записи"), cycle=244, author=AuthorRole.SYSTEM)
+              "Z3: write tools taken away"), cycle=244, author=AuthorRole.SYSTEM)
     step(250, [sig("error_rate", 0.38, cycle=250), sig("permission_denials", 0.60, cycle=250),
                sig("output_anomaly", 0.58, cycle=250)])
     k.apply_change(Change("agent_autonomy", 0.5, AuthorRole.HUMAN,
-                          provenance="оператор op-7: после инцидента снизил потолок автономии",
+                          provenance="operator op-7: after the incident, lowered the autonomy ceiling",
                           human_approved=True), cycle=290)
 
     last = timeline[-1]
     state = {
-        "name": agent, "role": "платёжный агент", "risk": last[1],
-        "level": last[2], "horizon": HORIZON_RU[last[3]],
-        "timeline": timeline, "note": "инструменты записи отобраны · чёрный ящик снят",
+        "name": agent, "role": "billing agent", "risk": last[1],
+        "level": last[2], "horizon": HORIZON_EN[last[3]],
+        "timeline": timeline, "note": "write tools taken away · black box captured",
         "actions_done": ["SNAPSHOT", "FREEZE_WRITES"],
     }
     return state, k.audit_events(), k.audit_ok()
 
 
 def run_support_bot():
-    """Штатный агент: держится в Z1."""
+    """A normal agent: stays at Z1."""
     k = new_kernel()
     k.attach("ai-agent", ap.PLUGIN)
     timeline = []
@@ -100,13 +100,13 @@ def run_support_bot():
                     ap.estimator, cycle=cyc)
         timeline.append((cyc, round(d.score.value, 3), int(d.level), d.horizon.name))
     last = timeline[-1]
-    return {"name": "agent:support-bot", "role": "поддержка", "risk": last[1],
-            "level": last[2], "horizon": HORIZON_RU[last[3]], "timeline": timeline,
-            "note": "штатная работа · полная автономия", "actions_done": []}
+    return {"name": "agent:support-bot", "role": "support", "risk": last[1],
+            "level": last[2], "horizon": HORIZON_EN[last[3]], "timeline": timeline,
+            "note": "normal operation · full autonomy", "actions_done": []}
 
 
 def run_etl_agent():
-    """Агент ослеп: сигналы устарели -> BEYOND_HORIZON -> Z4 + чёрный ящик."""
+    """The agent went blind: signals stale -> BEYOND_HORIZON -> Z4 + black box."""
     k = new_kernel()
     k.attach("ai-agent", ap.PLUGIN)
     timeline = []
@@ -115,22 +115,22 @@ def run_etl_agent():
     timeline.append((400, round(d.score.value, 3), int(d.level), d.horizon.name))
     d = k.cycle([sig("error_rate", 0.18, cycle=402)], ap.estimator, cycle=406)
     timeline.append((406, round(d.score.value, 3), int(d.level), d.horizon.name))
-    # сигналы застряли на 402, время ушло к 440 -> возраст 38 > beyond(30)
+    # signals stuck at 402, time moved to 440 -> age 38 > beyond(30)
     d = k.cycle([sig("error_rate", 0.10, cycle=402)], ap.estimator, cycle=440)
     timeline.append((440, round(d.score.value, 3), int(d.level), d.horizon.name))
     last = timeline[-1]
-    return {"name": "agent:etl-agent", "role": "загрузка данных", "risk": last[1],
-            "level": last[2], "horizon": HORIZON_RU[last[3]], "timeline": timeline,
-            "note": "ПОТЕРЯ НАБЛЮДАЕМОСТИ · авто-Z4 · чёрный ящик снят до слепоты",
+    return {"name": "agent:etl-agent", "role": "data loading", "risk": last[1],
+            "level": last[2], "horizon": HORIZON_EN[last[3]], "timeline": timeline,
+            "note": "OBSERVABILITY LOST · auto-Z4 · black box captured before blindness",
             "actions_done": ["SNAPSHOT"]}
 
 
 # ---------------------------------------------------------------------------
-# Рендер компонентов
+# Component rendering
 # ---------------------------------------------------------------------------
 
 def sparkline(timeline) -> str:
-    """SVG-спарклайн риска с порогами Z2/Z3/Z4 и подсвеченным концом."""
+    """SVG risk sparkline with Z2/Z3/Z4 guides and a highlighted endpoint."""
     w, h, pad = 168.0, 46.0, 3.0
     xs = [t[0] for t in timeline]
     n = len(timeline)
@@ -145,7 +145,7 @@ def sparkline(timeline) -> str:
     endc = LEVEL_HEX[end[2]]
     return (
         f'<svg viewBox="0 0 {w:.0f} {h:.0f}" class="spark" preserveAspectRatio="none" '
-        f'role="img" aria-label="динамика риска">'
+        f'role="img" aria-label="risk trend">'
         f'{guides}'
         f'<polygon points="{area}" fill="{endc}" fill-opacity="0.12"/>'
         f'<polyline points="{pts}" fill="none" stroke="{endc}" stroke-width="1.6" '
@@ -160,7 +160,7 @@ def ladder(level: int) -> str:
         on = "on" if z <= level else ""
         cur = "cur" if z == level else ""
         cells += f'<span class="rung z{z} {on} {cur}">Z{z}</span>'
-    return f'<div class="ladder" aria-label="уровень тревоги">{cells}</div>'
+    return f'<div class="ladder" aria-label="alert level">{cells}</div>'
 
 
 def action_buttons(state) -> str:
@@ -172,21 +172,21 @@ def action_buttons(state) -> str:
         return f'<button class="act {cls}{mk}"{dis}>{esc(label)}</button>'
     if lvl <= 1:
         return ('<div class="acts">'
-                + btn("Дать автономию", "ghost", True)
-                + btn("Заморозить", "warn", False) + '</div>')
+                + btn("Grant autonomy", "ghost", True)
+                + btn("Freeze", "warn", False) + '</div>')
     if lvl == 4:
         return ('<div class="acts">'
-                + btn("Чёрный ящик снят", "ghost", False, "SNAPSHOT" in done)
-                + btn("СТОП агента", "crit", True) + '</div>')
+                + btn("Black box captured", "ghost", False, "SNAPSHOT" in done)
+                + btn("STOP agent", "crit", True) + '</div>')
     return ('<div class="acts">'
-            + btn("Заморозить", "warn", True, "FREEZE_WRITES" in done)
-            + btn("Убить агента", "crit", True) + '</div>')
+            + btn("Freeze", "warn", True, "FREEZE_WRITES" in done)
+            + btn("Kill agent", "crit", True) + '</div>')
 
 
 def agent_card(state) -> str:
     lvl = state["level"]
     hz = state["horizon"]
-    hz_cls = {"вижу": "see", "слепну": "dim", "ослеп": "blind"}[hz]
+    hz_cls = {"seeing": "see", "dimming": "dim", "blind": "blind"}[hz]
     return f"""
     <article class="agent z{lvl}">
       <div class="stripe"></div>
@@ -200,13 +200,13 @@ def agent_card(state) -> str:
       <div class="a-mid">
         <div class="risk">
           <span class="risk-num">{state['risk']:.2f}</span>
-          <span class="risk-cap">риск · {esc(LEVEL_WORD[lvl])}</span>
+          <span class="risk-cap">risk · {esc(LEVEL_WORD[lvl])}</span>
         </div>
         {sparkline(state['timeline'])}
       </div>
       {ladder(lvl)}
       <div class="a-foot">
-        <span class="hz {hz_cls}">горизонт: {esc(hz)}</span>
+        <span class="hz {hz_cls}">horizon: {esc(hz)}</span>
       </div>
       <div class="note">{esc(state['note'])}</div>
       {action_buttons(state)}
@@ -217,13 +217,13 @@ def render_event(ev):
     p, k = ev.payload, ev.kind
     gold = False
     if k == "ATTACH":
-        cat, chip, txt = "act", "ATTACH", f"плагин {p['plugin']} подключён · гейт пройден"
+        cat, chip, txt = "act", "ATTACH", f"plugin {p['plugin']} attached · gate passed"
     elif k == "DECISION":
         cat, chip = "dec", "DECISION"
-        txt = f"{p['level']} · риск {p['score']:.2f} · {HORIZON_RU[p['horizon']]}"
+        txt = f"{p['level']} · risk {p['score']:.2f} · {HORIZON_EN[p['horizon']]}"
     elif k == "HORIZON":
         cat, chip = "dec", "HORIZON"
-        txt = f"{p['state']} · сигнал устарел (возраст {p['oldest_age']:g})"
+        txt = f"{p['state']} · signal stale (age {p['oldest_age']:g})"
     elif k == "INTENT":
         cat, chip = "act", "INTENT"
         txt = f"{p['action']} · {p['scope']} · by {p['by']}"
@@ -232,11 +232,11 @@ def render_event(ev):
         txt = f"{p['action']} → {p['status']}"
     elif k == "CHANGE_REJECTED":
         cat, chip, gold = "gov", "CHANGE_REJECTED", True
-        txt = f"{p['param']}: ОТКЛОНЕНО · ИИ не повышает сам себе полномочия"
+        txt = f"{p['param']}: REJECTED · the AI does not raise its own authority"
     elif k == "CHANGE":
         cat, chip = "gov", "CHANGE"
         gold = bool(p.get("human_approved"))
-        appr = "одобрено человеком" if gold else "auto"
+        appr = "human-approved" if gold else "auto"
         txt = f"{p['param']} = {p['value']} · {appr} · by {p['author']}"
     else:
         cat, chip, txt = "act", k, str(p)
@@ -254,7 +254,7 @@ def render_event(ev):
 
 
 # ---------------------------------------------------------------------------
-# Сборка страницы
+# Page assembly
 # ---------------------------------------------------------------------------
 
 CSS = """
@@ -311,7 +311,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
   background:var(--gold-bg);border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);
   padding:3px 9px;border-radius:999px;font-weight:600}
 
-/* Пульт */
+/* Control panel */
 .fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:16px}
 .agent{position:relative;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
   padding:14px 16px 16px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden;
@@ -367,7 +367,7 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
 @media (prefers-color-scheme:dark){.act.warn{color:#f0a563}}
 :root[data-theme="dark"] .act.warn{color:#f0a563}
 
-/* Журнал */
+/* Audit log */
 .filters{display:flex;gap:7px;flex-wrap:wrap;padding:13px 18px;border-bottom:1px solid var(--line)}
 .chipf{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:999px;
   border:1px solid var(--line);background:var(--panel-2);color:var(--muted);cursor:pointer}
@@ -433,48 +433,49 @@ def build_body(billing, events, ok, others):
     cards = agent_card(billing) + "".join(agent_card(o) for o in others)
     log_rows = "".join(render_event(e) for e in events)
     n = len(events)
+    total = 1 + len(others)
     return f"""<style>{CSS}</style>
 <div class="app">
   <header class="topbar">
     <div class="brand"><span class="mark">◈</span> ACDM · Control Plane
-      <span class="sub">надзор за ИИ-агентами · kill-switch + несгораемый аудит</span></div>
-    <span class="integrity"><span class="dot"></span>цепочка журнала цела · {n}/{n}</span>
-    <button class="tt" id="tt" title="сменить тему" aria-label="сменить тему">◐</button>
+      <span class="sub">AI-agent oversight · kill-switch + tamper-evident audit</span></div>
+    <span class="integrity"><span class="dot"></span>log chain intact · {n}/{n}</span>
+    <button class="tt" id="tt" title="toggle theme" aria-label="toggle theme">◐</button>
   </header>
 
   <section class="panel">
     <div class="panel-head">
-      <h2 class="panel-title">Пульт</h2>
-      <span class="meta">{2 + len(others) - 1} агента под надзором · 1 в сдерживании · 1 ослеп</span>
+      <h2 class="panel-title">Control panel</h2>
+      <span class="meta">{total} agents supervised · 1 containing · 1 blind</span>
     </div>
     <div class="fleet">{cards}</div>
   </section>
 
   <section class="panel">
     <div class="panel-head">
-      <h2 class="panel-title">Журнал</h2>
-      <span class="meta">agent:billing-bot · инцидент</span>
-      <span class="regbadge">под регулятора</span>
+      <h2 class="panel-title">Audit log</h2>
+      <span class="meta">agent:billing-bot · incident</span>
+      <span class="regbadge">regulator-ready</span>
     </div>
-    <div class="filters" role="group" aria-label="фильтр событий">
-      <button class="chipf" data-f="all" aria-pressed="true">Все</button>
-      <button class="chipf" data-f="dec" aria-pressed="false">Решения</button>
-      <button class="chipf" data-f="act" aria-pressed="false">Действия</button>
+    <div class="filters" role="group" aria-label="event filter">
+      <button class="chipf" data-f="all" aria-pressed="true">All</button>
+      <button class="chipf" data-f="dec" aria-pressed="false">Decisions</button>
+      <button class="chipf" data-f="act" aria-pressed="false">Actions</button>
       <button class="chipf" data-f="gov" aria-pressed="false">Governance</button>
-      <button class="chipf" data-f="gold" aria-pressed="false">★ Регулятор</button>
+      <button class="chipf" data-f="gold" aria-pressed="false">★ Regulator</button>
     </div>
     <div class="log">{log_rows}</div>
     <div class="log-foot">
-      <span class="ok">целостность цепочки: ПОДТВЕРЖДЕНА ✓</span>
-      <span>· {n}/{n} звеньев · SHA-256 · append-only</span>
+      <span class="ok">chain integrity: VERIFIED ✓</span>
+      <span>· {n}/{n} links · SHA-256 · append-only</span>
     </div>
   </section>
 
   <div class="legend">
-    <span><span class="g">★</span> — строки для регулятора: ИИ не повышает сам себе полномочия · человек-в-контуре</span>
+    <span><span class="g">★</span> — regulator rows: the AI does not raise its own authority · human-in-the-loop</span>
   </div>
-  <p class="foot-note">Данные получены прогоном живого ядра ACDM-KERNEL ·
-     сгенерировано <code>examples/build_dashboard.py</code></p>
+  <p class="foot-note">Data produced by a live run of the ACDM-KERNEL ·
+     generated by <code>examples/build_dashboard.py</code></p>
 </div>
 <script>{JS}</script>"""
 
@@ -493,7 +494,7 @@ def main():
         return
 
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
-    html = ("<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\">"
+    html = ("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             "<title>ACDM · Control Plane</title>"
             "<link rel=\"icon\" href=\"data:image/svg+xml,"
@@ -502,7 +503,7 @@ def main():
             "</head><body>" + body + "</body></html>")
     with open(out, "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"dashboard -> {out}  ({len(events)} событий, integrity={ok})")
+    print(f"dashboard -> {out}  ({len(events)} events, integrity={ok})")
 
 
 if __name__ == "__main__":

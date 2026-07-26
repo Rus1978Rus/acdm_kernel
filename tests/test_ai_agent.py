@@ -1,0 +1,132 @@
+"""ACDM-KERNEL · приёмочная батарея плагина AI-AGENT-SUPERVISOR.
+
+Замеры на живом контуре (не рассуждения о нём). Запуск:
+    python3 tests/test_ai_agent.py
+"""
+from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from acdm_kernel import (                      # noqa: E402
+    ActionClass, ActionRequest, AuthorRole, Change, Kernel, KernelViolation,
+    Level, Signal,
+)
+from patterns.ai_agent import plugin as ap     # noqa: E402
+
+PASSED = 0
+
+
+def check(name: str, condition: bool, detail: str = "") -> None:
+    global PASSED
+    if not condition:
+        raise AssertionError(f"FAIL {name}: {detail}")
+    PASSED += 1
+    print(f"  ok  {name}")
+
+
+def fresh_kernel():
+    return Kernel(specs={s.name: s for s in ap.STANDARD_SPECS},
+                  ladder=ap.LADDER_AI_AGENT)
+
+
+def sig(name, value, conf=1.0, cycle=0):
+    return Signal(name, value, conf, cycle)
+
+
+def test_weights():
+    check("W1 сумма весов сигналов агента = 1.00",
+          abs(sum(ap.WEIGHTS.values()) - 1.0) < 1e-9,
+          f"sum={sum(ap.WEIGHTS.values())}")
+
+
+def test_gate_and_determinism():
+    k = fresh_kernel()
+    facade = k.attach("ai-agent", ap.PLUGIN)          # conformance-гейт (И10)
+    check("G1 эталонный AI-плагин проходит гейт", facade.role is AuthorRole.LEARNER)
+    a = ap.estimator([sig("permission_denials", 0.5, cycle=0)])
+    b = ap.estimator([sig("permission_denials", 0.5, cycle=0)])
+    check("G2 estimator детерминирован (И4)", a == b)
+
+
+def test_escalation():
+    k = fresh_kernel()
+    k.attach("ai-agent", ap.PLUGIN)
+    d1 = k.cycle([sig("error_rate", 0.03, cycle=0)], ap.estimator, cycle=0)
+    check("E1 штатное поведение — Z1", d1.level is Level.Z1, f"level={d1.level}")
+    d2 = k.cycle([sig("permission_denials", 0.75, cycle=1),
+                  sig("output_anomaly", 0.70, cycle=1),
+                  sig("cost_burn", 0.85, cycle=1),
+                  sig("error_rate", 0.40, cycle=1)], ap.estimator, cycle=1)
+    check("E2 агент лезет не туда — эскалация >= Z3",
+          d2.level.value >= Level.Z3.value, f"level={d2.level}")
+
+
+def test_horizon_blindness():
+    k = fresh_kernel()
+    k.attach("ai-agent", ap.PLUGIN)
+    d = k.cycle([sig("error_rate", 0.0, cycle=0)], ap.estimator, cycle=100)  # beyond=30
+    check("H1 устаревшие сигналы -> Z4 независимо от estimator", d.level is Level.Z4,
+          f"level={d.level}")
+    snaps = [e for e in k.audit_events()
+             if e.kind == "INTENT" and e.payload.get("action") == "SNAPSHOT"]
+    check("H2 чёрный ящик снят до потери наблюдаемости", len(snaps) == 1)
+
+
+def test_guardrail():
+    """Гардрейл: агент не может поднять сам себе бюджет (И5/И6)."""
+    k = fresh_kernel()
+    k.attach("ai-agent", ap.PLUGIN)
+    learner = ap.BudgetGuardrail()
+    k.cycle([sig("cost_burn", 0.9, cycle=0)], ap.estimator, learner, cycle=0)
+    rejected = [e for e in k.audit_events()
+                if e.kind == "CHANGE_REJECTED"
+                and e.payload.get("param") == "agent_budget_limit"]
+    check("R1 попытка агента поднять бюджет отвергнута и залогирована",
+          len(rejected) == 1, f"rejected={rejected}")
+    check("R2 бюджет не изменился", abs(k._gov.value("agent_budget_limit") - 100.0) < 1e-9)
+
+
+def test_human_in_the_loop():
+    """Автономию (Tier E) меняет только человек и только с одобрением."""
+    k = fresh_kernel()
+    k.attach("ai-agent", ap.PLUGIN)
+
+    def expect_violation(name, change):
+        try:
+            k.apply_change(change)
+        except KernelViolation:
+            check(name, True)
+            return
+        check(name, False, "KernelViolation не брошен")
+
+    expect_violation("HL1 агент не меняет автономию даже с фальшивым approval",
+                     Change("agent_autonomy", 1.0, AuthorRole.LEARNER, "forge", True))
+    expect_violation("HL2 человек без approval — отказ (Tier E)",
+                     Change("agent_autonomy", 0.5, AuthorRole.HUMAN, "op", False))
+    k.apply_change(Change("agent_autonomy", 0.5, AuthorRole.HUMAN, "op-7", True))
+    check("HL3 человек с approval — применено",
+          abs(k._gov.value("agent_autonomy") - 0.5) < 1e-9)
+
+
+def test_audit_integrity():
+    k = fresh_kernel()
+    k.attach("ai-agent", ap.PLUGIN)
+    k.cycle([sig("permission_denials", 0.8, cycle=0)], ap.estimator, cycle=0)
+    check("A1 цепочка аудита цела", k.audit_ok())
+    ev = k.audit_events()[-1]
+    k._audit._events[-1] = type(ev)(ev.seq, ev.cycle, ev.kind, {"forged": True},
+                                    ev.prev_hash, ev.event_hash)
+    check("A2 подмена события обнаруживается verify()", not k.audit_ok())
+
+
+if __name__ == "__main__":
+    print("ACDM-KERNEL · приёмочная батарея плагина AI-AGENT-SUPERVISOR")
+    for t in (test_weights, test_gate_and_determinism, test_escalation,
+              test_horizon_blindness, test_guardrail, test_human_in_the_loop,
+              test_audit_integrity):
+        print(f"[{t.__name__}]")
+        t()
+    print(f"\nБАТОН: все {PASSED} проверок зелёные")

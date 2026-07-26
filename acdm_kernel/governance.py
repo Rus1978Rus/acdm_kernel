@@ -35,6 +35,19 @@ class Governance:
     def value(self, name: str) -> float:
         return self._values[name]
 
+    def get(self, name: str, default: float = 0.0) -> float:
+        """Значение параметра или default, если он не зарегистрирован.
+
+        В отличие от value(), не бросает на отсутствующем параметре — нужно для
+        опциональных общих регуляторов ядра (например escalate_bias), которых
+        у конкретного плагина может и не быть.
+        """
+        return self._values.get(name, default)
+
+    def snapshot(self) -> Dict[str, float]:
+        """Копия всех текущих значений (для показа контуру обучения)."""
+        return dict(self._values)
+
     def params_hash(self) -> str:
         return canonical_hash(self._values)
 

@@ -121,6 +121,7 @@ class Kernel:
         self._executor = _Executor(actuator)
         self._memory: Dict[str, float] = {}
         self._level = Level.Z1
+        self._cycle = 0                          # логические часы: последний виденный такт
         self._plugins: Dict[str, PluginFacade] = {}
 
     # ---------- наблюдаемость для внешнего мира (только чтение) ----------
@@ -143,6 +144,7 @@ class Kernel:
     def cycle(self, signals: Iterable[Signal], estimator,
               learner=None, cycle: int = 0) -> Decision:
         signals = list(signals)
+        self._cycle = cycle                     # логические часы продвигает только cycle()
 
         # И8: сначала горизонт — доверие оценке зависит от него.
         hstate = self._horizon.update(signals, cycle)
@@ -155,7 +157,14 @@ class Kernel:
                       confidence=score.confidence * self._horizon.confidence_factor(),
                       features=score.features)
 
-        level = self._ladder.level_for(score)
+        # Опциональный общий регулятор чувствительности эскалации (закрывает
+        # находку A аудита): escalate_bias сдвигает балл для выбора уровня, если
+        # параметр зарегистрирован в governance; иначе 0 и поведение не меняется.
+        # В аудит и Decision пишется ИСХОДНЫЙ риск, сдвиг влияет лишь на уровень.
+        bias = self._gov.get("escalate_bias", 0.0)
+        ladder_score = Score(value=min(1.0, max(0.0, score.value + bias)),
+                             confidence=score.confidence, features=score.features)
+        level = self._ladder.level_for(ladder_score)
         if hstate is HorizonState.BEYOND_HORIZON:
             level = Level.Z4                    # И8: оценке не верим
 
@@ -170,14 +179,23 @@ class Kernel:
                 reason="BEYOND_HORIZON: слепое аварийное состояние"),
                 forced=True, author=AuthorRole.SYSTEM)
 
+        # K6: контур обучения видит ЖИВЫЕ параметры governance и память ядра
+        # (закрывает находку B: раньше memory всегда была пустой, из-за чего
+        # Tier-C пороги до learner'а не доходили).
         if learner is not None:
-            for change in learner(signals, self._memory):
+            learner_memory = {**self._gov.snapshot(), **self._memory}
+            for change in learner(signals, learner_memory):
                 try:
                     self.apply_change(change)
                 except KernelViolation as exc:
                     # нарушение контура обучения — событие аудита, не падение контура
                     self._audit.append(cycle, "CHANGE_REJECTED",
                                        {"param": change.param, "reason": str(exc)})
+
+        # Память ядра эволюционирует -> memory_state_hash перестаёт быть
+        # константой и начинает удостоверять состояние (закрывает находку B).
+        self._memory["last_score"] = score.value
+        self._memory["last_level"] = float(self._level)
 
         decision = Decision(level=self._level, score=score, horizon=hstate,
                             memory_state_hash=canonical_hash(self._memory),
@@ -191,45 +209,47 @@ class Kernel:
     # ---------- действия (K4 через И2/И7/И9) ----------
 
     def execute(self, plugin_name: str, request: ActionRequest, *,
-                cycle: int = 0, forced: bool = False,
+                cycle: Optional[int] = None, forced: bool = False,
                 author: AuthorRole = AuthorRole.LEARNER) -> ActionResult:
+        at = self._cycle if cycle is None else cycle   # такт по умолчанию — текущий (находка D)
         if not self._ladder.permits(self._level, request.action):
-            result = ActionResult(request, "BLOCKED_BY_LEVEL", cycle)
-            self._audit.append(cycle, "OUTCOME", {
+            result = ActionResult(request, "BLOCKED_BY_LEVEL", at)
+            self._audit.append(at, "OUTCOME", {
                 "by": plugin_name, "action": request.action.name,
                 "scope": request.scope, "status": result.status})
             return result
 
         damping = int(self._gov.value("damping_min_interval"))
-        if not self._damper.allow(request, damping, cycle, forced=forced):
-            result = ActionResult(request, "BLOCKED_BY_DAMPING", cycle)
-            self._audit.append(cycle, "OUTCOME", {
+        if not self._damper.allow(request, damping, at, forced=forced):
+            result = ActionResult(request, "BLOCKED_BY_DAMPING", at)
+            self._audit.append(at, "OUTCOME", {
                 "by": plugin_name, "action": request.action.name,
                 "scope": request.scope, "status": result.status})
             return result
 
         # И2: INTENT до исполнения.
-        self._audit.append(cycle, "INTENT", {
+        self._audit.append(at, "INTENT", {
             "by": plugin_name, "action": request.action.name,
             "scope": request.scope, "reason": request.reason,
             "author": author.value, "params_hash": self._gov.params_hash()})
 
-        result = self._executor.do(request, cycle)
+        result = self._executor.do(request, at)
 
-        self._audit.append(cycle, "OUTCOME", {
+        self._audit.append(at, "OUTCOME", {
             "by": plugin_name, "action": request.action.name,
             "scope": request.scope, "status": result.status})
         return result
 
     # ---------- параметры (K6 через governance) ----------
 
-    def apply_change(self, change: Change) -> None:
+    def apply_change(self, change: Change, *, cycle: Optional[int] = None) -> None:
         self._gov.apply(change)               # бросает KernelViolation при нарушении
-        self._audit.append(change.provenance_cycle if hasattr(change, "provenance_cycle") else 0,
-                           "CHANGE", {"param": change.param, "value": change.new_value,
-                                      "author": change.author.value,
-                                      "provenance": change.provenance,
-                                      "human_approved": change.human_approved})
+        at = self._cycle if cycle is None else cycle   # находка D: CHANGE-события несут такт
+        self._audit.append(at, "CHANGE",
+                           {"param": change.param, "value": change.new_value,
+                            "author": change.author.value,
+                            "provenance": change.provenance,
+                            "human_approved": change.human_approved})
 
     # ---------- подключение плагинов (И10) ----------
 

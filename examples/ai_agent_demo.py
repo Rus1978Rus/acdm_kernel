@@ -94,10 +94,12 @@ def main() -> None:
                    cycle=244, author=AuthorRole.SYSTEM)
 
     # --- решение человека: конституционное, с явным одобрением (Tier E) --
+    # оператор действует позже (такт 290) — host продвигает логические часы.
     kernel.apply_change(Change("agent_autonomy", 0.5, AuthorRole.HUMAN,
                                provenance="оператор op-7: после инцидента снизил "
                                           "потолок автономии агента",
-                               human_approved=True))
+                               human_approved=True),
+                        cycle=290)
 
     # ---------------------------------------------------------------------
     # Печать трассы «под регулятора»
@@ -109,8 +111,7 @@ def main() -> None:
     for ev in events:
         text, gold = render(ev)
         star = "★" if gold else " "
-        cyc = str(ev.cycle) if ev.cycle else "·"      # cycle=0 у CHANGE — см. прим.
-        print(f"  {star} {ev.seq:>3}  {cyc:>4}  {ev.kind:<16}  {text:<46}  "
+        print(f"  {star} {ev.seq:>3}  {ev.cycle:>4}  {ev.kind:<16}  {text:<46}  "
               f"{ev.event_hash[:4]}… ✓")
     print("    " + "─" * 86)
     ok = kernel.audit_ok()
@@ -120,9 +121,7 @@ def main() -> None:
     print("\n★ — «золотые» строки для регулятора:")
     print("   • CHANGE_REJECTED: ИИ не может сам себе повысить полномочия (И5/И6) — вшито.")
     print("   • CHANGE human_approved=true: человек-в-контуре, с идентификатором оператора.")
-    print("\nПрим.: у CHANGE-события такт отображается «·» — ядро не проставляет ему")
-    print("       логический такт (находка D методологического аудита). CHANGE_REJECTED")
-    print("       и все прочие события проставлены корректно.")
+    print("\nВсе события несут логический такт (находка D аудита исправлена).")
 
 
 if __name__ == "__main__":

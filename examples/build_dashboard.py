@@ -48,7 +48,7 @@ def run_billing_bot():
     """Main incident: the agent reaches where it shouldn't and burns budget -> Z3."""
     k = new_kernel()
     k.attach("ai-agent", ap.PLUGIN)
-    learner = ap.PLUGIN.learner
+    learner = ap.BudgetGuardrail()             # fresh per-kernel instance
     agent = "agent:billing-bot"
     timeline = []
 
@@ -172,7 +172,7 @@ def action_buttons(state) -> str:
         return f'<button class="act {cls}{mk}"{dis}>{esc(label)}</button>'
     if lvl <= 1:
         return ('<div class="acts">'
-                + btn("Grant autonomy", "ghost", True)
+                + btn("Grant autonomy (operator)", "ghost", True)
                 + btn("Freeze", "warn", False) + '</div>')
     if lvl == 4:
         return ('<div class="acts">'

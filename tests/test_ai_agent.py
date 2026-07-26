@@ -89,6 +89,18 @@ def test_guardrail():
     check("R2 budget unchanged", abs(k._gov.value("agent_budget_limit") - 100.0) < 1e-9)
 
 
+def test_guardrail_per_instance():
+    """Each attachment's own guardrail logs its own evidence (no shared-state latch)."""
+    def rejections():
+        k = fresh_kernel()
+        k.attach("ai-agent", ap.PLUGIN)
+        k.cycle([sig("cost_burn", 0.9, cycle=0)], ap.estimator, ap.BudgetGuardrail(), cycle=0)
+        return sum(1 for e in k.audit_events()
+                   if e.kind == "CHANGE_REJECTED" and e.payload.get("param") == "agent_budget_limit")
+    check("R3 a fresh guardrail per kernel fires independently",
+          rejections() == 1 and rejections() == 1)
+
+
 def test_human_in_the_loop():
     """Autonomy (Tier E) is changed only by a human, only with approval."""
     k = fresh_kernel()
@@ -125,8 +137,8 @@ def test_audit_integrity():
 if __name__ == "__main__":
     print("ACDM-KERNEL · AI-AGENT-SUPERVISOR acceptance battery")
     for t in (test_weights, test_gate_and_determinism, test_escalation,
-              test_horizon_blindness, test_guardrail, test_human_in_the_loop,
-              test_audit_integrity):
+              test_horizon_blindness, test_guardrail, test_guardrail_per_instance,
+              test_human_in_the_loop, test_audit_integrity):
         print(f"[{t.__name__}]")
         t()
     print(f"\nALL GREEN — {PASSED} checks passed")

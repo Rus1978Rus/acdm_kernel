@@ -56,16 +56,25 @@ assert abs(sum(WEIGHTS.values()) - 1.0) < 1e-9, "weights must sum to 1.0"
 ESCALATE_THRESHOLDS = {0.30: Level.Z2, 0.60: Level.Z3, 0.80: Level.Z4}
 
 # Actions by level, translated to AI-agent oversight:
-#   Z1 — normal, may grant more autonomy (EXPAND);
+#   Z1 — normal, observe only;
 #   Z2 — snapshot the context + notify the operator;
 #   Z3 — take away dangerous tools (FREEZE_WRITES = read-only),
 #        isolate the session (QUARANTINE);
 #   Z4 — full stop: roll back recent actions (ROLLBACK), kill the agent
 #        (KILL_DISPOSABLE), black box.
+#
+# NB: EXPAND (grant more autonomy) is deliberately on NO level. Expanding an
+# agent's autonomy is an escalation of its authority, so it goes through the
+# Tier-E `agent_autonomy` governance path (human + explicit approval), never the
+# action path. The kernel's execute() gate is level-only (I7); if EXPAND were
+# learner-accessible at Z1/Z2, a learner-role facade could request it and restore
+# autonomy the gate would wave through — bypassing the very Tier-E restriction
+# that protects it. Keeping autonomy off the action path preserves the plugin's
+# thesis: the AI cannot raise its own authority.
 ALLOWED_BY_LEVEL = {
-    Level.Z1: frozenset({ActionClass.OBSERVE, ActionClass.EXPAND}),
+    Level.Z1: frozenset({ActionClass.OBSERVE}),
     Level.Z2: frozenset({ActionClass.OBSERVE, ActionClass.SNAPSHOT,
-                         ActionClass.EXPAND, ActionClass.OPERATOR_ESCALATION}),
+                         ActionClass.OPERATOR_ESCALATION}),
     Level.Z3: frozenset({ActionClass.OBSERVE, ActionClass.SNAPSHOT,
                          ActionClass.FREEZE_WRITES, ActionClass.QUARANTINE,
                          ActionClass.OPERATOR_ESCALATION}),
@@ -133,6 +142,11 @@ class BudgetGuardrail:
     authority. Governance rejects the attempt, and the kernel records a
     CHANGE_REJECTED in the audit. So the guardrail "the AI does not raise its own
     authority" is proven by measurement, not by promise (I5/I6).
+
+    Per-attachment state: the fire-once latch lives on the instance. Give each
+    kernel/attachment its own BudgetGuardrail — do NOT share the exported
+    singleton PLUGIN.learner across kernels, or the first high-cost agent would
+    latch it and suppress every later kernel's CHANGE_REJECTED evidence.
     """
 
     def __init__(self) -> None:

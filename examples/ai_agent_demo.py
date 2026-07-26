@@ -62,7 +62,7 @@ def main() -> None:
     kernel = Kernel(specs={s.name: s for s in ap.STANDARD_SPECS},
                     ladder=ap.LADDER_AI_AGENT)
     kernel.attach("ai-agent", ap.PLUGIN)                 # conformance gate (I10)
-    learner = ap.PLUGIN.learner
+    learner = ap.BudgetGuardrail()                       # fresh per-kernel instance
     agent = "agent:billing-bot"
 
     # --- t=210: the agent operates normally ------------------------------

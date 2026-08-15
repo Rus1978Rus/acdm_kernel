@@ -5,6 +5,43 @@ not documented for operators to follow. Patterns (resilience, security, cost,
 compliance) bolt on as plugins through a conformance gate. The kernel knows
 nothing about patterns; a plugin need not know the mechanics of the circuit.
 
+## In plain words
+
+`acdm_kernel` is a "brain" for systems that must react to trouble safely and
+under control.
+
+Imagine you have signals (something is happening) and actions (what the system
+should do about it). This brain guarantees a few things:
+
+1. **Who may do what.** Every alert level carries its own clearance. An action
+   too dangerous for the current level simply does not go through.
+2. **Escalation is instant, calming down is deliberate.** When things get worse,
+   the alert level rises immediately; when things improve, the system is in no
+   hurry to relax — so it never flaps back and forth.
+3. **Everything lands in a tamper-evident log.** Who decided what, why, and at
+   which level — any after-the-fact forgery is immediately caught by the hash
+   chain.
+4. **It knows when it has gone blind.** If the incoming data goes stale, the
+   kernel does not pretend everything is under control — it drops into the
+   emergency level on its own and captures a black box *before* losing sight,
+   not after.
+5. **No plugin gets in without a checkpoint.** A plugin attaches only after
+   proving, on an isolated copy of the kernel, that it is predictable and does
+   not reach where it must not.
+
+**How it is used:** the kernel itself knows nothing about any particular domain
+(AI, networks, factories, banking). Each domain gets a small plugin with its own
+signals and rules, while the kernel enforces the shared rules of control, safety
+and audit.
+
+**Where it is useful:** anywhere you need controlled, auditable, safe automatic
+reactions to incidents — from overseeing AI agents to protecting IT
+infrastructure, telecom, fintech, industrial and critical systems.
+
+**Important:** this is a reference/research implementation, not production
+software. Real deployments need durable log storage and real command executors
+wired in (see "Honest boundaries" below).
+
 ```
 acdm_kernel/            kernel (domain-neutral)
   types.py             Signal / Score / Change / Level / Tier / KernelViolation

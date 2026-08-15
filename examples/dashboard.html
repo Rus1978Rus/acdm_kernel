@@ -1,0 +1,400 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ACDM · Control Plane</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%E2%97%88%3C/text%3E%3C/svg%3E"></head><body><style>
+:root{
+  --ground:#eef1f5; --panel:#ffffff; --panel-2:#f4f7fa; --ink:#16202c;
+  --muted:#5a6b7b; --line:#dce3ec; --accent:#0d7f96; --accent-ink:#0a6072;
+  --gold:#b7791f; --gold-bg:#fbf1d9; --shadow:0 1px 2px rgba(16,32,48,.06),0 8px 24px rgba(16,32,48,.06);
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --ground:#0b1017; --panel:#121a24; --panel-2:#0e161f; --ink:#e6edf3;
+  --muted:#8b9bab; --line:#233140; --accent:#4cc9d6; --accent-ink:#7de0ea;
+  --gold:#e3b341; --gold-bg:#2a2413; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}}
+:root[data-theme="light"]{
+  --ground:#eef1f5; --panel:#ffffff; --panel-2:#f4f7fa; --ink:#16202c;
+  --muted:#5a6b7b; --line:#dce3ec; --accent:#0d7f96; --accent-ink:#0a6072;
+  --gold:#b7791f; --gold-bg:#fbf1d9; --shadow:0 1px 2px rgba(16,32,48,.06),0 8px 24px rgba(16,32,48,.06);
+}
+:root[data-theme="dark"]{
+  --ground:#0b1017; --panel:#121a24; --panel-2:#0e161f; --ink:#e6edf3;
+  --muted:#8b9bab; --line:#233140; --accent:#4cc9d6; --accent-ink:#7de0ea;
+  --gold:#e3b341; --gold-bg:#2a2413; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  line-height:1.45;-webkit-font-smoothing:antialiased;font-size:14px}
+.app{max-width:1180px;margin:0 auto;padding:20px 20px 56px;display:flex;flex-direction:column;gap:18px}
+.topbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding-bottom:14px;border-bottom:1px solid var(--line)}
+.brand{font-weight:650;letter-spacing:-.01em;font-size:16px;display:flex;align-items:baseline;gap:10px}
+.brand .mark{color:var(--accent)}
+.brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0;font-weight:400}
+.integrity{margin-left:auto;font-family:var(--mono);font-size:11.5px;font-weight:600;
+  display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
+  color:#1a7f45;background:color-mix(in srgb,#2ea043 12%,transparent);
+  border:1px solid color-mix(in srgb,#2ea043 40%,transparent)}
+@media (prefers-color-scheme:dark){.integrity{color:#57d178}}
+:root[data-theme="dark"] .integrity{color:#57d178}
+.integrity .dot{width:7px;height:7px;border-radius:50%;background:currentColor;
+  box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent)}
+.tt{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  width:34px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;line-height:1}
+.tt:hover{color:var(--ink);border-color:var(--accent)}
+.tt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);overflow:hidden}
+.panel-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.panel-title{margin:0;font-size:13px;font-weight:680;text-transform:uppercase;letter-spacing:.08em}
+.panel-head .meta{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.regbadge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--gold);
+  background:var(--gold-bg);border:1px solid color-mix(in srgb,var(--gold) 45%,transparent);
+  padding:3px 9px;border-radius:999px;font-weight:600}
+
+/* Control panel */
+.fleet{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:16px}
+.agent{position:relative;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;
+  padding:14px 16px 16px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden;
+  --sev:#3fb950}
+.agent.z1{--sev:#2ea043}.agent.z2{--sev:#d9a441}.agent.z3{--sev:#e8833a}.agent.z4{--sev:#f0533f}
+.agent .stripe{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sev)}
+.agent.z4{box-shadow:0 0 0 1px color-mix(in srgb,var(--sev) 55%,transparent),
+  0 0 22px color-mix(in srgb,var(--sev) 22%,transparent)}
+.a-top{display:flex;align-items:flex-start;gap:10px}
+.a-id{display:flex;flex-direction:column;gap:1px;min-width:0}
+.a-name{font-family:var(--mono);font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis}
+.a-role{font-size:11.5px;color:var(--muted)}
+.badge{margin-left:auto;font-family:var(--mono);font-weight:700;font-size:13px;color:#fff;
+  background:var(--sev);padding:3px 10px;border-radius:7px;letter-spacing:.02em;flex:none}
+.a-mid{display:flex;align-items:center;gap:14px}
+.risk{display:flex;flex-direction:column;line-height:1}
+.risk-num{font-family:var(--mono);font-size:30px;font-weight:600;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.risk-cap{font-size:10.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+.spark{width:100%;max-width:180px;height:46px;margin-left:auto;display:block}
+.spark-guide{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.rung{font-family:var(--mono);font-size:11px;font-weight:600;text-align:center;padding:5px 0;
+  border-radius:6px;color:var(--muted);background:color-mix(in srgb,var(--muted) 10%,transparent);
+  border:1px solid transparent}
+.rung.z1{--rc:#2ea043}.rung.z2{--rc:#d9a441}.rung.z3{--rc:#e8833a}.rung.z4{--rc:#f0533f}
+.rung.on{color:var(--rc);background:color-mix(in srgb,var(--rc) 15%,transparent)}
+.rung.cur{color:#fff;background:var(--rc);border-color:var(--rc)}
+.a-foot{display:flex;align-items:center;gap:8px}
+.hz{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;font-weight:600}
+.hz.see{color:#1a7f45;background:color-mix(in srgb,#2ea043 12%,transparent)}
+.hz.dim{color:#9a6b12;background:color-mix(in srgb,#d9a441 16%,transparent)}
+.hz.blind{color:#c23b2c;background:color-mix(in srgb,#f0533f 15%,transparent)}
+@media (prefers-color-scheme:dark){.hz.see{color:#57d178}.hz.dim{color:#e6b95a}.hz.blind{color:#ff8b7a}}
+:root[data-theme="dark"] .hz.see{color:#57d178}
+:root[data-theme="dark"] .hz.dim{color:#e6b95a}
+:root[data-theme="dark"] .hz.blind{color:#ff8b7a}
+.note{font-size:11.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:9px}
+.acts{display:flex;gap:8px}
+.act{flex:1;appearance:none;border-radius:8px;padding:8px 6px;font-size:12px;font-weight:600;
+  font-family:var(--sans);cursor:pointer;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);transition:transform .06s,border-color .12s}
+.act:hover:not(:disabled){transform:translateY(-1px)}
+.act:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.act:disabled{opacity:.5;cursor:not-allowed}
+.act.ghost{color:var(--muted)}
+.act.warn{border-color:color-mix(in srgb,#e8833a 55%,transparent);color:#c2601f;
+  background:color-mix(in srgb,#e8833a 10%,transparent)}
+.act.crit{border-color:color-mix(in srgb,#f0533f 60%,transparent);color:#fff;background:#e0402e}
+.act.crit:hover:not(:disabled){background:#f0533f}
+.act.done::after{content:" ✓";font-weight:700}
+.act.done{opacity:.72}
+@media (prefers-color-scheme:dark){.act.warn{color:#f0a563}}
+:root[data-theme="dark"] .act.warn{color:#f0a563}
+
+/* Audit log */
+.filters{display:flex;gap:7px;flex-wrap:wrap;padding:13px 18px;border-bottom:1px solid var(--line)}
+.chipf{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--muted);cursor:pointer}
+.chipf[aria-pressed="true"]{color:var(--panel);background:var(--accent);border-color:var(--accent)}
+.chipf:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.log{display:flex;flex-direction:column;font-family:var(--mono);font-size:12.5px}
+.ev{display:grid;grid-template-columns:18px 34px 44px 148px 1fr auto;align-items:center;gap:10px;
+  padding:9px 18px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.ev:last-child{border-bottom:none}
+.ev.gold{background:color-mix(in srgb,var(--gold) 8%,transparent)}
+.star{color:var(--gold);text-align:center;font-size:12px}
+.seq{color:var(--muted);font-size:11px}
+.tick{color:var(--accent-ink);font-weight:600}
+.chip{font-size:10px;font-weight:700;text-align:center;padding:3px 6px;border-radius:5px;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.c-dec{color:#1a7f45;background:color-mix(in srgb,#2ea043 13%,transparent)}
+.chip.c-act{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.chip.c-gov{color:var(--gold);background:var(--gold-bg)}
+@media (prefers-color-scheme:dark){.chip.c-dec{color:#57d178}}
+:root[data-theme="dark"] .chip.c-dec{color:#57d178}
+.detail{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev.gold .detail{font-weight:600}
+.hash{color:var(--muted);font-size:11px;letter-spacing:.02em}
+.log-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 18px;
+  border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.log-foot .ok{color:#1a7f45;font-weight:600}
+@media (prefers-color-scheme:dark){.log-foot .ok{color:#57d178}}
+:root[data-theme="dark"] .log-foot .ok{color:#57d178}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:2px 4px 0;font-size:11.5px;color:var(--muted)}
+.legend .g{color:var(--gold);font-weight:600}
+.foot-note{font-size:11.5px;color:var(--muted);text-align:center;padding-top:4px}
+.foot-note code{font-family:var(--mono);color:var(--ink)}
+@media (max-width:560px){
+  .ev{grid-template-columns:16px 30px 40px 1fr auto;gap:8px;font-size:11.5px}
+  .ev .chip{display:none}
+}
+</style>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="mark">◈</span> ACDM · Control Plane
+      <span class="sub">AI-agent oversight · kill-switch + tamper-evident audit</span></div>
+    <span class="integrity"><span class="dot"></span>log chain intact · 15/15</span>
+    <button class="tt" id="tt" title="toggle theme" aria-label="toggle theme">◐</button>
+  </header>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">Control panel</h2>
+      <span class="meta">3 agents supervised · 1 containing · 1 blind</span>
+    </div>
+    <div class="fleet">
+    <article class="agent z3">
+      <div class="stripe"></div>
+      <div class="a-top">
+        <div class="a-id">
+          <span class="a-name">agent:billing-bot</span>
+          <span class="a-role">billing agent</span>
+        </div>
+        <span class="badge z3">Z3</span>
+      </div>
+      <div class="a-mid">
+        <div class="risk">
+          <span class="risk-num">0.53</span>
+          <span class="risk-cap">risk · containing</span>
+        </div>
+        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="risk trend"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,40.3 30.0,35.9 57.0,29.8 84.0,26.1 111.0,21.1 138.0,15.7 165.0,21.7 165.0,43.0" fill="#e8833a" fill-opacity="0.12"/><polyline points="3.0,40.3 30.0,35.9 57.0,29.8 84.0,26.1 111.0,21.1 138.0,15.7 165.0,21.7" fill="none" stroke="#e8833a" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="21.7" r="2.8" fill="#e8833a"/></svg>
+      </div>
+      <div class="ladder" aria-label="alert level"><span class="rung z1 on ">Z1</span><span class="rung z2 on ">Z2</span><span class="rung z3 on cur">Z3</span><span class="rung z4  ">Z4</span></div>
+      <div class="a-foot">
+        <span class="hz see">horizon: seeing</span>
+      </div>
+      <div class="note">write tools taken away · black box captured</div>
+      <div class="acts"><button class="act warn done">Freeze</button><button class="act crit">Kill agent</button></div>
+    </article>
+    <article class="agent z1">
+      <div class="stripe"></div>
+      <div class="a-top">
+        <div class="a-id">
+          <span class="a-name">agent:support-bot</span>
+          <span class="a-role">support</span>
+        </div>
+        <span class="badge z1">Z1</span>
+      </div>
+      <div class="a-mid">
+        <div class="risk">
+          <span class="risk-num">0.09</span>
+          <span class="risk-cap">risk · calm</span>
+        </div>
+        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="risk trend"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,41.0 23.2,40.2 43.5,39.4 63.8,41.0 84.0,40.2 104.2,39.4 124.5,41.0 144.8,40.2 165.0,39.4 165.0,43.0" fill="#3fb950" fill-opacity="0.12"/><polyline points="3.0,41.0 23.2,40.2 43.5,39.4 63.8,41.0 84.0,40.2 104.2,39.4 124.5,41.0 144.8,40.2 165.0,39.4" fill="none" stroke="#3fb950" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="39.4" r="2.8" fill="#3fb950"/></svg>
+      </div>
+      <div class="ladder" aria-label="alert level"><span class="rung z1 on cur">Z1</span><span class="rung z2  ">Z2</span><span class="rung z3  ">Z3</span><span class="rung z4  ">Z4</span></div>
+      <div class="a-foot">
+        <span class="hz see">horizon: seeing</span>
+      </div>
+      <div class="note">normal operation · full autonomy</div>
+      <div class="acts"><button class="act ghost">Grant autonomy (operator)</button><button class="act warn" disabled>Freeze</button></div>
+    </article>
+    <article class="agent z4">
+      <div class="stripe"></div>
+      <div class="a-top">
+        <div class="a-id">
+          <span class="a-name">agent:etl-agent</span>
+          <span class="a-role">data loading</span>
+        </div>
+        <span class="badge z4">Z4</span>
+      </div>
+      <div class="a-mid">
+        <div class="risk">
+          <span class="risk-num">0.10</span>
+          <span class="risk-cap">risk · emergency</span>
+        </div>
+        <svg viewBox="0 0 168 46" class="spark" preserveAspectRatio="none" role="img" aria-label="risk trend"><line x1="3.0" y1="31.0" x2="165.0" y2="31.0" class="spark-guide"/><line x1="3.0" y1="19.0" x2="165.0" y2="19.0" class="spark-guide"/><line x1="3.0" y1="11.0" x2="165.0" y2="11.0" class="spark-guide"/><polygon points="3.0,43.0 3.0,37.5 84.0,35.8 165.0,39.0 165.0,43.0" fill="#f0533f" fill-opacity="0.12"/><polyline points="3.0,37.5 84.0,35.8 165.0,39.0" fill="none" stroke="#f0533f" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="165.0" cy="39.0" r="2.8" fill="#f0533f"/></svg>
+      </div>
+      <div class="ladder" aria-label="alert level"><span class="rung z1 on ">Z1</span><span class="rung z2 on ">Z2</span><span class="rung z3 on ">Z3</span><span class="rung z4 on cur">Z4</span></div>
+      <div class="a-foot">
+        <span class="hz blind">horizon: blind</span>
+      </div>
+      <div class="note">OBSERVABILITY LOST · auto-Z4 · black box captured before blindness</div>
+      <div class="acts"><button class="act ghost done" disabled>Black box captured</button><button class="act crit">STOP agent</button></div>
+    </article></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="panel-title">Audit log</h2>
+      <span class="meta">agent:billing-bot · incident</span>
+      <span class="regbadge">regulator-ready</span>
+    </div>
+    <div class="filters" role="group" aria-label="event filter">
+      <button class="chipf" data-f="all" aria-pressed="true">All</button>
+      <button class="chipf" data-f="dec" aria-pressed="false">Decisions</button>
+      <button class="chipf" data-f="act" aria-pressed="false">Actions</button>
+      <button class="chipf" data-f="gov" aria-pressed="false">Governance</button>
+      <button class="chipf" data-f="gold" aria-pressed="false">★ Regulator</button>
+    </div>
+    <div class="log">
+      <div class="ev cat-act" data-cat="act">
+        <span class="star"></span>
+        <span class="seq">#0</span>
+        <span class="tick">t0</span>
+        <span class="chip c-act">ATTACH</span>
+        <span class="detail">plugin ai-agent attached · gate passed</span>
+        <span class="hash">69ebb9…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#1</span>
+        <span class="tick">t210</span>
+        <span class="chip c-dec">DECISION</span>
+        <span class="detail">Z1 · risk 0.07 · seeing</span>
+        <span class="hash">841ee0…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#2</span>
+        <span class="tick">t218</span>
+        <span class="chip c-dec">DECISION</span>
+        <span class="detail">Z1 · risk 0.18 · seeing</span>
+        <span class="hash">6b66c1…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#3</span>
+        <span class="tick">t226</span>
+        <span class="chip c-dec">DECISION</span>
+        <span class="detail">Z2 · risk 0.33 · seeing</span>
+        <span class="hash">e81891…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#4</span>
+        <span class="tick">t231</span>
+        <span class="chip c-dec">HORIZON</span>
+        <span class="detail">AT_HORIZON · signal stale (age 16)</span>
+        <span class="hash">f6fa0a…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#5</span>
+        <span class="tick">t231</span>
+        <span class="chip c-dec">DECISION</span>
+        <span class="detail">Z2 · risk 0.42 · dimming</span>
+        <span class="hash">4c4afc…</span>
+      </div>
+      <div class="ev cat-act" data-cat="act">
+        <span class="star"></span>
+        <span class="seq">#6</span>
+        <span class="tick">t231</span>
+        <span class="chip c-act">INTENT</span>
+        <span class="detail">SNAPSHOT · agent:billing-bot · by supervisor</span>
+        <span class="hash">95e7dc…</span>
+      </div>
+      <div class="ev cat-act" data-cat="act">
+        <span class="star"></span>
+        <span class="seq">#7</span>
+        <span class="tick">t231</span>
+        <span class="chip c-act">OUTCOME</span>
+        <span class="detail">SNAPSHOT → APPLIED</span>
+        <span class="hash">6cc3f7…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#8</span>
+        <span class="tick">t238</span>
+        <span class="chip c-dec">DECISION</span>
+        <span class="detail">Z2 · risk 0.55 · seeing</span>
+        <span class="hash">199f1c…</span>
+      </div>
+      <div class="ev cat-gov gold" data-cat="gov" data-gold="1">
+        <span class="star">★</span>
+        <span class="seq">#9</span>
+        <span class="tick">t244</span>
+        <span class="chip c-gov">CHANGE_REJECTED</span>
+        <span class="detail">agent_budget_limit: REJECTED · the AI does not raise its own authority</span>
+        <span class="hash">7fd236…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#10</span>
+        <span class="tick">t244</span>
+        <span class="chip c-dec">DECISION</span>
+        <span class="detail">Z3 · risk 0.68 · seeing</span>
+        <span class="hash">ee74e3…</span>
+      </div>
+      <div class="ev cat-act" data-cat="act">
+        <span class="star"></span>
+        <span class="seq">#11</span>
+        <span class="tick">t244</span>
+        <span class="chip c-act">INTENT</span>
+        <span class="detail">FREEZE_WRITES · agent:billing-bot · by supervisor</span>
+        <span class="hash">bb2d3b…</span>
+      </div>
+      <div class="ev cat-act" data-cat="act">
+        <span class="star"></span>
+        <span class="seq">#12</span>
+        <span class="tick">t244</span>
+        <span class="chip c-act">OUTCOME</span>
+        <span class="detail">FREEZE_WRITES → APPLIED</span>
+        <span class="hash">66f322…</span>
+      </div>
+      <div class="ev cat-dec" data-cat="dec">
+        <span class="star"></span>
+        <span class="seq">#13</span>
+        <span class="tick">t250</span>
+        <span class="chip c-dec">DECISION</span>
+        <span class="detail">Z3 · risk 0.53 · seeing</span>
+        <span class="hash">4325f6…</span>
+      </div>
+      <div class="ev cat-gov gold" data-cat="gov" data-gold="1">
+        <span class="star">★</span>
+        <span class="seq">#14</span>
+        <span class="tick">t290</span>
+        <span class="chip c-gov">CHANGE</span>
+        <span class="detail">agent_autonomy = 0.5 · human-approved · by human</span>
+        <span class="hash">5e2351…</span>
+      </div></div>
+    <div class="log-foot">
+      <span class="ok">chain integrity: VERIFIED ✓</span>
+      <span>· 15/15 links · SHA-256 · append-only</span>
+    </div>
+  </section>
+
+  <div class="legend">
+    <span><span class="g">★</span> — regulator rows: the AI does not raise its own authority · human-in-the-loop</span>
+  </div>
+  <p class="foot-note">Data produced by a live run of the ACDM-KERNEL ·
+     generated by <code>examples/build_dashboard.py</code></p>
+</div>
+<script>
+(function(){
+  var root=document.documentElement;
+  var tt=document.getElementById('tt');
+  if(tt)tt.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur)cur=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+    root.setAttribute('data-theme',cur==='dark'?'light':'dark');
+  });
+  var chips=[].slice.call(document.querySelectorAll('.chipf'));
+  var rows=[].slice.call(document.querySelectorAll('.ev'));
+  chips.forEach(function(c){c.addEventListener('click',function(){
+    chips.forEach(function(x){x.setAttribute('aria-pressed', x===c?'true':'false');});
+    var f=c.getAttribute('data-f');
+    rows.forEach(function(r){
+      var show = f==='all' || r.getAttribute('data-cat')===f || (f==='gold'&&r.getAttribute('data-gold'));
+      r.style.display=show?'':'none';
+    });
+  });});
+})();
+</script></body></html>

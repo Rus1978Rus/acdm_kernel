@@ -1,22 +1,22 @@
-"""ACDM-KERNEL · the circuit.
+"""ACDM-KERNEL · контур.
 
-A composition of seven elements (K1–K7). The invariants enforced here by code,
-not promised in prose:
+Композиция семи элементов (K1–K7). Инварианты, которые здесь исполняются
+кодом, а не обещаются текстом:
 
-- I1: the executor is private. A plugin physically cannot call the actuator
-  directly — PluginFacade has no such attribute.
-- I2: audit order — INTENT before execution, OUTCOME after.
-- I3: append-only audit with a hash chain (audit.py).
-- I4: determinism — logical cycles, canonical hashes; the same input yields the
-  same Decision + the same audit.
-- I5/I6: parameters are written only through governance (governance.py).
-- I7: the level ladder — an action outside the level's clearance is rejected
-  BEFORE the executor.
-- I8: BEYOND_HORIZON forces the circuit into Z4 and forces a SNAPSHOT —
-  regardless of what the plugin's estimator "thinks".
-- I9: damper and hold (damping.py); escalation is never blocked.
-- I10: a plugin attaches only after passing the conformance gate on an ISOLATED
-  probe kernel — the check never mutates the live circuit.
+- И1: исполнитель приватен. Плагин физически не может вызвать актуатор
+  напрямую — у PluginFacade нет такого атрибута.
+- И2: порядок аудита — INTENT до исполнения, OUTCOME после.
+- И3: аудит append-only с хеш-цепочкой (audit.py).
+- И4: детерминизм — логические циклы, канонические хеши; одинаковый вход
+  даёт одинаковый Decision + одинаковый аудит.
+- И5/И6: запись параметров только через governance (governance.py).
+- И7: лестница уровней — действие вне допуска уровня отклоняется ДО
+  исполнителя.
+- И8: BEYOND_HORIZON принудительно переводит контур в Z4 и заставляет
+  SNAPSHOT — независимо от того, что «думает» estimator плагина.
+- И9: демпфер и удержание (damping.py); эскалация никогда не блокируется.
+- И10: плагин подключается только после прохождения conformance-гейта
+  на ИЗОЛИРОВАННОМ probe-ядре — проверка не мутирует живой контур.
 """
 from __future__ import annotations
 
@@ -34,11 +34,11 @@ from .types import (
 
 
 class Ladder:
-    """I7: which level admits which action classes."""
+    """И7: какой уровень какие классы действий допускает."""
 
     def __init__(self, escalate: Mapping[float, Level],
                  allowed: Mapping[Level, frozenset]) -> None:
-        self._escalate = dict(sorted(escalate.items()))  # threshold -> level
+        self._escalate = dict(sorted(escalate.items()))  # порог -> уровень
         self._allowed = dict(allowed)
 
     def level_for(self, score: Score) -> Level:
@@ -53,7 +53,7 @@ class Ladder:
 
 
 class _Executor:
-    """K4, private (I1). The only path to the actuator is through Kernel.execute."""
+    """K4, приватный (И1). Единственный путь к актуатору — через Kernel.execute."""
 
     def __init__(self, actuator: Optional[Callable[[ActionRequest], str]] = None) -> None:
         self._locks: Dict[str, ActionClass] = {}
@@ -73,10 +73,10 @@ class _Executor:
 
 
 class PluginFacade:
-    """Everything a plugin CAN see and do. Its role is bound at attach (I1).
+    """Всё, что плагин МОЖЕТ видеть и делать. Роль привязана при attach (И1).
 
-    The facade deliberately has no executor / governance / audit attributes —
-    checked by the conformance gate (T1).
+    У фасада намеренно нет атрибутов executor / governance / audit — проверяется
+    conformance-гейтом (T1).
     """
 
     def __init__(self, kernel: "Kernel", name: str, role: AuthorRole) -> None:
@@ -84,7 +84,7 @@ class PluginFacade:
         object.__setattr__(self, "_name", name)
         object.__setattr__(self, "_role", role)
 
-    def __setattr__(self, key, value):  # the facade is immutable from outside
+    def __setattr__(self, key, value):  # фасад неизменяем снаружи
         raise KernelViolation(f"facade read-only: {key}")
 
     @property
@@ -99,12 +99,12 @@ class PluginFacade:
 
     def propose_change(self, change: Change) -> None:
         if change.author is not self._role:
-            raise KernelViolation("facade writes only under its own role (I5)")
+            raise KernelViolation("фасад пишет только от своей роли (И5)")
         self._kernel.apply_change(change)
 
 
 class Kernel:
-    """K1–K7 in one circuit. Time is whole logical cycles (I4)."""
+    """K1–K7 в одном контуре. Время — целые логические циклы (И4)."""
 
     def __init__(self, *, specs: Mapping[str, ParamSpec], ladder: Ladder,
                  actuator: Optional[Callable[[ActionRequest], str]] = None) -> None:
@@ -121,17 +121,17 @@ class Kernel:
         self._executor = _Executor(actuator)
         self._memory: Dict[str, float] = {}
         self._level = Level.Z1
-        self._cycle = 0                          # logical clock: the last tick seen
+        self._cycle = 0                          # логические часы: последний виденный такт
         self._plugins: Dict[str, PluginFacade] = {}
 
-    # ---------- observability for the outside world (read-only) ----------
+    # ---------- наблюдаемость для внешнего мира (только чтение) ----------
 
     @property
     def level(self) -> Level:
         return self._level
 
     def memory_view(self) -> Mapping[str, float]:
-        return MappingProxyType(self._memory)   # I3: memory is never mutated from outside
+        return MappingProxyType(self._memory)   # И3: память снаружи не мутируют
 
     def audit_events(self):
         return self._audit.events()
@@ -139,14 +139,14 @@ class Kernel:
     def audit_ok(self) -> bool:
         return self._audit.verify()
 
-    # ---------- main loop (K1→K2→K3, with K5/K6/K7 inside) ----------
+    # ---------- главный цикл (K1→K2→K3, с K5/K6/K7 внутри) ----------
 
     def cycle(self, signals: Iterable[Signal], estimator,
               learner=None, cycle: int = 0) -> Decision:
         signals = list(signals)
-        self._cycle = cycle                     # only cycle() advances the logical clock
+        self._cycle = cycle                     # логические часы продвигает только cycle()
 
-        # I8: horizon first — trust in the estimate depends on it.
+        # И8: сначала горизонт — доверие оценке зависит от него.
         hstate = self._horizon.update(signals, cycle)
         if hstate is not HorizonState.NORMAL:
             self._audit.append(cycle, "HORIZON",
@@ -157,44 +157,43 @@ class Kernel:
                       confidence=score.confidence * self._horizon.confidence_factor(),
                       features=score.features)
 
-        # Optional cross-cutting escalation-sensitivity knob (closes audit finding
-        # A): escalate_bias shifts the score used to pick the level, if the param
-        # is registered in governance; otherwise 0 and behavior is unchanged. The
-        # RAW risk is what goes to the audit and Decision — the shift only affects
-        # the level.
+        # Опциональный общий регулятор чувствительности эскалации (закрывает
+        # находку A аудита): escalate_bias сдвигает балл для выбора уровня, если
+        # параметр зарегистрирован в governance; иначе 0 и поведение не меняется.
+        # В аудит и Decision пишется ИСХОДНЫЙ риск, сдвиг влияет лишь на уровень.
         bias = self._gov.get("escalate_bias", 0.0)
         ladder_score = Score(value=min(1.0, max(0.0, score.value + bias)),
                              confidence=score.confidence, features=score.features)
         level = self._ladder.level_for(ladder_score)
         if hstate is HorizonState.BEYOND_HORIZON:
-            level = Level.Z4                    # I8: we do not trust the estimate
+            level = Level.Z4                    # И8: оценке не верим
 
         self._level = Level(self._hold.check(
             int(self._level), int(level), cycle,
             hold_cycles=int(self._gov.value("deescalate_hold_cycles"))))
 
         if hstate is HorizonState.BEYOND_HORIZON:
-            # Black-box snapshot BEFORE observability is lost; forced — lesson 13B.
+            # Black-box snapshot ДО потери наблюдаемости; forced — урок 13B.
             self.execute("__kernel__", ActionRequest(
                 ActionClass.SNAPSHOT, scope="__kernel__",
-                reason="BEYOND_HORIZON: blind emergency state"),
+                reason="BEYOND_HORIZON: слепое аварийное состояние"),
                 forced=True, author=AuthorRole.SYSTEM)
 
-        # K6: the learning loop sees LIVE governance values and kernel memory
-        # (closes finding B: memory used to be always empty, so Tier-C thresholds
-        # never reached the learner).
+        # K6: контур обучения видит ЖИВЫЕ параметры governance и память ядра
+        # (закрывает находку B: раньше memory всегда была пустой, из-за чего
+        # Tier-C пороги до learner'а не доходили).
         if learner is not None:
             learner_memory = {**self._gov.snapshot(), **self._memory}
             for change in learner(signals, learner_memory):
                 try:
                     self.apply_change(change)
                 except KernelViolation as exc:
-                    # a learning-loop breach is an audit event, not a crash of the circuit
+                    # нарушение контура обучения — событие аудита, не падение контура
                     self._audit.append(cycle, "CHANGE_REJECTED",
                                        {"param": change.param, "reason": str(exc)})
 
-        # Kernel memory evolves -> memory_state_hash stops being a constant and
-        # starts certifying state (closes finding B).
+        # Память ядра эволюционирует -> memory_state_hash перестаёт быть
+        # константой и начинает удостоверять состояние (закрывает находку B).
         self._memory["last_score"] = score.value
         self._memory["last_level"] = float(self._level)
 
@@ -207,12 +206,12 @@ class Kernel:
             "memory_hash": decision.memory_state_hash})
         return decision
 
-    # ---------- actions (K4 via I2/I7/I9) ----------
+    # ---------- действия (K4 через И2/И7/И9) ----------
 
     def execute(self, plugin_name: str, request: ActionRequest, *,
                 cycle: Optional[int] = None, forced: bool = False,
                 author: AuthorRole = AuthorRole.LEARNER) -> ActionResult:
-        at = self._cycle if cycle is None else cycle   # default tick is the current one (finding D)
+        at = self._cycle if cycle is None else cycle   # такт по умолчанию — текущий (находка D)
         if not self._ladder.permits(self._level, request.action):
             result = ActionResult(request, "BLOCKED_BY_LEVEL", at)
             self._audit.append(at, "OUTCOME", {
@@ -228,7 +227,7 @@ class Kernel:
                 "scope": request.scope, "status": result.status})
             return result
 
-        # I2: INTENT before execution.
+        # И2: INTENT до исполнения.
         self._audit.append(at, "INTENT", {
             "by": plugin_name, "action": request.action.name,
             "scope": request.scope, "reason": request.reason,
@@ -241,35 +240,34 @@ class Kernel:
             "scope": request.scope, "status": result.status})
         return result
 
-    # ---------- parameters (K6 via governance) ----------
+    # ---------- параметры (K6 через governance) ----------
 
     def apply_change(self, change: Change, *, cycle: Optional[int] = None) -> None:
-        self._gov.apply(change)               # raises KernelViolation on a breach
-        at = self._cycle if cycle is None else cycle   # finding D: CHANGE events carry a tick
+        self._gov.apply(change)               # бросает KernelViolation при нарушении
+        at = self._cycle if cycle is None else cycle   # находка D: CHANGE-события несут такт
         self._audit.append(at, "CHANGE",
                            {"param": change.param, "value": change.new_value,
                             "author": change.author.value,
                             "provenance": change.provenance,
                             "human_approved": change.human_approved})
 
-    # ---------- attaching plugins (I10) ----------
+    # ---------- подключение плагинов (И10) ----------
 
     def _spawn_probe(self) -> "Kernel":
-        """An isolated copy of the circuit for the conformance gate.
+        """Изолированная копия контура для conformance-гейта.
 
-        A plugin's checks MUST NOT mutate the live kernel: not its level, not its
-        audit, not its parameters. The probe gets a fresh governance with the same
-        specs.
+        Проверки плагина НЕ ДОЛЖНЫ мутировать живое ядро: ни уровень, ни аудит,
+        ни параметры. Probe получает свежий governance с теми же спецификациями.
         """
-        return Kernel(specs=self._specs, ladder=self._ladder)  # fresh defaults
+        return Kernel(specs=self._specs, ladder=self._ladder)  # свежие дефолты
 
     def attach(self, name: str, plugin, role: AuthorRole = AuthorRole.LEARNER) -> PluginFacade:
-        from .conformance import run_conformance    # local import: avoids a cycle
+        from .conformance import run_conformance    # локальный импорт: без цикла
 
         report = run_conformance(self._spawn_probe, plugin, role)
         if not report.passed:
-            raise KernelViolation(f"conformance failed (I10): {report.failures}")
-        # Assigning a role is constitutional: role:{name} is registered as Tier E (I5).
+            raise KernelViolation(f"conformance не пройден (И10): {report.failures}")
+        # Назначение роли — конституция: role:{name} регистрируется как Tier E (И5).
         role_spec = Governance.role_spec(name)
         self._specs[role_spec.name] = role_spec
         self._gov.add_spec(role_spec)
@@ -279,5 +277,5 @@ class Kernel:
         return facade
 
     def _make_test_facade(self, plugin_name: str, role: AuthorRole) -> PluginFacade:
-        """A facade for the conformance surface checks (T1). Not registered."""
+        """Фасад для conformance-проверок поверхности (T1). Не регистрируется."""
         return PluginFacade(self, plugin_name, role)

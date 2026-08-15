@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ACDM · Control Plane — live playground</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%9A%A6%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --ground:#eef1f5; --panel:#ffffff; --panel-2:#f4f7fa; --ink:#16202c;
+  --muted:#5a6b7b; --line:#dce3ec; --accent:#0d7f96; --accent-ink:#0a6072;
+  --gold:#b7791f; --gold-bg:#fbf1d9; --shadow:0 1px 2px rgba(16,32,48,.06),0 8px 24px rgba(16,32,48,.06);
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --ground:#0b1017; --panel:#121a24; --panel-2:#0e161f; --ink:#e6edf3;
+  --muted:#8b9bab; --line:#233140; --accent:#4cc9d6; --accent-ink:#7de0ea;
+  --gold:#e3b341; --gold-bg:#2a2413; --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}}
+:root[data-theme="light"]{--ground:#eef1f5;--panel:#ffffff;--panel-2:#f4f7fa;--ink:#16202c;--muted:#5a6b7b;--line:#dce3ec;--accent:#0d7f96;--accent-ink:#0a6072;--gold:#b7791f;--gold-bg:#fbf1d9;--shadow:0 1px 2px rgba(16,32,48,.06),0 8px 24px rgba(16,32,48,.06);}
+:root[data-theme="dark"]{--ground:#0b1017;--panel:#121a24;--panel-2:#0e161f;--ink:#e6edf3;--muted:#8b9bab;--line:#233140;--accent:#4cc9d6;--accent-ink:#7de0ea;--gold:#e3b341;--gold-bg:#2a2413;--shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.45;font-size:14px;-webkit-font-smoothing:antialiased}
+.app{max-width:1180px;margin:0 auto;padding:20px 20px 56px;display:flex;flex-direction:column;gap:16px}
+.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.brand{font-weight:650;font-size:16px;display:flex;align-items:baseline;gap:10px}
+.brand .mark{color:var(--accent)}
+.brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:400}
+.integrity{margin-left:auto;font-family:var(--mono);font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;color:#1a7f45;background:color-mix(in srgb,#2ea043 12%,transparent);border:1px solid color-mix(in srgb,#2ea043 40%,transparent)}
+.integrity.bad{color:#c23b2c;background:color-mix(in srgb,#f0533f 12%,transparent);border-color:color-mix(in srgb,#f0533f 45%,transparent)}
+@media (prefers-color-scheme:dark){.integrity{color:#57d178}.integrity.bad{color:#ff8b7a}}
+:root[data-theme="dark"] .integrity{color:#57d178}
+:root[data-theme="dark"] .integrity.bad{color:#ff8b7a}
+.integrity .dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent)}
+.tt{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);width:34px;height:30px;border-radius:8px;cursor:pointer;font-size:15px}
+.tt:hover{color:var(--ink);border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.phead{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.ptitle{margin:0;font-size:12px;font-weight:680;text-transform:uppercase;letter-spacing:.08em}
+.phead .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+.pbody{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+
+/* state hero */
+.hero{display:flex;align-items:center;gap:16px;--sev:#2ea043}
+.hero.z1{--sev:#2ea043}.hero.z2{--sev:#d9a441}.hero.z3{--sev:#e8833a}.hero.z4{--sev:#f0533f}
+.hero .lvl{font-family:var(--mono);font-weight:700;font-size:34px;color:#fff;background:var(--sev);border-radius:12px;padding:8px 16px;letter-spacing:.02em;min-width:74px;text-align:center}
+.hero .rd{display:flex;flex-direction:column;line-height:1.1}
+.hero .risk{font-family:var(--mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.hero .word{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:3px}
+.hz{margin-left:auto;font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:999px;font-weight:600}
+.hz.see{color:#1a7f45;background:color-mix(in srgb,#2ea043 12%,transparent)}
+.hz.dim{color:#9a6b12;background:color-mix(in srgb,#d9a441 16%,transparent)}
+.hz.blind{color:#c23b2c;background:color-mix(in srgb,#f0533f 15%,transparent)}
+@media (prefers-color-scheme:dark){.hz.see{color:#57d178}.hz.dim{color:#e6b95a}.hz.blind{color:#ff8b7a}}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.rung{font-family:var(--mono);font-size:11px;font-weight:600;text-align:center;padding:6px 0;border-radius:6px;color:var(--muted);background:color-mix(in srgb,var(--muted) 10%,transparent);border:1px solid transparent}
+.rung.z1{--rc:#2ea043}.rung.z2{--rc:#d9a441}.rung.z3{--rc:#e8833a}.rung.z4{--rc:#f0533f}
+.rung.on{color:var(--rc);background:color-mix(in srgb,var(--rc) 15%,transparent)}
+.rung.cur{color:#fff;background:var(--rc);border-color:var(--rc)}
+
+/* sliders */
+.sig{display:grid;grid-template-columns:150px 1fr 42px;align-items:center;gap:10px}
+.sig label{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.sig input[type=range]{width:100%;accent-color:var(--accent)}
+.sig .val{font-family:var(--mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.hint{font-size:11px;color:var(--muted)}
+
+/* buttons */
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{appearance:none;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;font-family:var(--sans);cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);transition:transform .06s,border-color .12s}
+.btn:hover{transform:translateY(-1px);border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+.btn.warn{border-color:color-mix(in srgb,#e8833a 55%,transparent);color:#c2601f;background:color-mix(in srgb,#e8833a 10%,transparent)}
+.btn.crit{background:#e0402e;color:#fff;border-color:#e0402e}
+.btn.small{padding:6px 10px;font-size:11.5px}
+@media (prefers-color-scheme:dark){.btn.warn{color:#f0a563}}
+.divlabel{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:2px}
+
+/* log */
+.log{max-height:560px;overflow-y:auto;display:flex;flex-direction:column;font-family:var(--mono);font-size:12px}
+.ev{display:grid;grid-template-columns:16px 30px 42px 128px 1fr auto;align-items:center;gap:9px;padding:8px 16px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.ev.gold{background:color-mix(in srgb,var(--gold) 8%,transparent)}
+.ev.broken{background:color-mix(in srgb,#f0533f 12%,transparent);text-decoration:line-through;opacity:.8}
+.star{color:var(--gold);text-align:center}
+.seq{color:var(--muted);font-size:10.5px}
+.tick{color:var(--accent-ink);font-weight:600}
+.chip{font-size:9.5px;font-weight:700;text-align:center;padding:3px 5px;border-radius:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-dec{color:#1a7f45;background:color-mix(in srgb,#2ea043 13%,transparent)}
+.c-act{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.c-gov{color:var(--gold);background:var(--gold-bg)}
+@media (prefers-color-scheme:dark){.c-dec{color:#57d178}}
+.detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev.gold .detail{font-weight:600}
+.hash{color:var(--muted);font-size:10.5px}
+.logfoot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:var(--ground);font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:10px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+.toast.show{opacity:1}
+.note{font-size:11.5px;color:var(--muted);text-align:center}
+.note a{color:var(--accent-ink)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="mark">◈</span> ACDM · Control Plane
+      <span class="sub">live playground · kernel runs in your browser</span></div>
+    <span class="integrity" id="integ"><span class="dot"></span>chain intact · 0</span>
+    <button class="tt" id="tt" title="toggle theme" aria-label="toggle theme">◐</button>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT -->
+    <div class="col">
+      <section class="panel">
+        <div class="phead"><h2 class="ptitle">State</h2><span class="meta" id="cyclbl">cycle 0</span></div>
+        <div class="pbody">
+          <div class="hero z1" id="hero">
+            <div class="lvl" id="lvl">Z1</div>
+            <div class="rd"><span class="risk" id="risk">0.00</span><span class="word" id="word">risk · calm</span></div>
+            <span class="hz see" id="hz">horizon: seeing</span>
+          </div>
+          <div class="ladder" id="ladder"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="phead"><h2 class="ptitle">Signals</h2><span class="meta">0.00 – 1.00</span></div>
+        <div class="pbody">
+          <div id="signals"></div>
+          <div class="sig">
+            <label title="How many cycles old the signals are. >10 → dimming, >30 → blind (auto-Z4).">signal age</label>
+            <input type="range" id="age" min="0" max="40" step="1" value="0">
+            <span class="val" id="ageval">0</span>
+          </div>
+          <p class="hint">Age drives the observability horizon (I8): &gt;10 penalises trust, &gt;30 forces Z4 + a black-box snapshot.</p>
+          <div class="row">
+            <button class="btn primary" id="run">▶ Run cycle</button>
+            <button class="btn" id="auto">Auto</button>
+            <button class="btn small" id="reset">Reset</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="phead"><h2 class="ptitle">Supervisor actions</h2><span class="meta">level-gated (I7)</span></div>
+        <div class="pbody">
+          <div class="row" id="actions"></div>
+          <p class="hint">Actions outside the current level's clearance are rejected before the executor — try FREEZE at Z1.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="phead"><h2 class="ptitle">Governance &amp; guardrail</h2><span class="meta">I5 / I6</span></div>
+        <div class="pbody">
+          <div class="divlabel">the agent tries to raise its own authority</div>
+          <div class="row">
+            <button class="btn warn" data-gov="agent-budget">Agent: raise own budget (Tier D)</button>
+            <button class="btn warn" data-gov="agent-autonomy">Agent: forge approval, expand autonomy (Tier E)</button>
+          </div>
+          <div class="divlabel">a human operates the constitution</div>
+          <div class="row">
+            <button class="btn" data-gov="op-autonomy">Operator: lower autonomy (Tier E, approved)</button>
+            <button class="btn" data-gov="op-budget">Operator: raise budget (Tier D)</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="col">
+      <section class="panel">
+        <div class="phead"><h2 class="ptitle">Audit log</h2><span class="meta" id="evcount">0 events</span></div>
+        <div class="log" id="log"></div>
+        <div class="logfoot">
+          <button class="btn small" id="verify">Verify chain</button>
+          <button class="btn small warn" id="tamper">Tamper with a past event</button>
+          <span id="footnote">append-only · SHA-256 hash chain</span>
+        </div>
+      </section>
+      <p class="note">Faithful browser port of the Python ACDM-KERNEL — every decision, gate and hash is computed live in your browser, nothing is pre-baked.
+        Source &amp; the Python original: <a id="repo" href="#">the repository</a>.</p>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== kernel core (mirror of the Python kernel) ===== */
+const SHA256=(function(){function rotr(n,x){return(x>>>n)|(x<<(32-n));}
+const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+function toBytes(str){const u=unescape(encodeURIComponent(str));const b=new Array(u.length);for(let i=0;i<u.length;i++)b[i]=u.charCodeAt(i);return b;}
+return function(ascii){const bytes=toBytes(ascii);const l=bytes.length;const w1=bytes.concat(0x80);while(w1.length%64!==56)w1.push(0);
+const hi=Math.floor(l/0x20000000),lo=(l<<3)>>>0;w1.push((hi>>>24)&255,(hi>>>16)&255,(hi>>>8)&255,hi&255,(lo>>>24)&255,(lo>>>16)&255,(lo>>>8)&255,lo&255);
+let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;const w=new Array(64);
+for(let i=0;i<w1.length;i+=64){for(let j=0;j<16;j++)w[j]=(w1[i+j*4]<<24)|(w1[i+j*4+1]<<16)|(w1[i+j*4+2]<<8)|(w1[i+j*4+3]);
+for(let j=16;j<64;j++){const s0=rotr(7,w[j-15])^rotr(18,w[j-15])^(w[j-15]>>>3);const s1=rotr(17,w[j-2])^rotr(19,w[j-2])^(w[j-2]>>>10);w[j]=(w[j-16]+s0+w[j-7]+s1)|0;}
+let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;for(let j=0;j<64;j++){const S1=rotr(6,e)^rotr(11,e)^rotr(25,e);const ch=(e&f)^((~e)&g);const t1=(h+S1+ch+K[j]+w[j])|0;const S0=rotr(2,a)^rotr(13,a)^rotr(22,a);const mj=(a&b)^(a&c)^(b&c);const t2=(S0+mj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;}
+h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0;}
+const hex=n=>((n>>>0).toString(16)).padStart(8,'0');return hex(h0)+hex(h1)+hex(h2)+hex(h3)+hex(h4)+hex(h5)+hex(h6)+hex(h7);};})();
+function sortKeys(o){if(Array.isArray(o))return o.map(sortKeys);if(o&&typeof o==='object'){const r={};for(const k of Object.keys(o).sort())r[k]=sortKeys(o[k]);return r;}return o;}
+function canonicalHash(o){return SHA256(JSON.stringify(sortKeys(o)));}
+const WEIGHTS={error_rate:0.15,permission_denials:0.20,cost_burn:0.15,loop_rate:0.10,output_anomaly:0.20,safety_flags:0.10,human_override_rate:0.10};
+const ESCALATE=[[0.30,2],[0.60,3],[0.80,4]];
+const ALLOWED={1:new Set(['OBSERVE']),2:new Set(['OBSERVE','SNAPSHOT','OPERATOR_ESCALATION']),3:new Set(['OBSERVE','SNAPSHOT','FREEZE_WRITES','QUARANTINE','OPERATOR_ESCALATION']),4:new Set(['OBSERVE','SNAPSHOT','FREEZE_WRITES','QUARANTINE','ROLLBACK','KILL_DISPOSABLE','OPERATOR_ESCALATION'])};
+const SPECS={horizon_warn_age:{tier:3,value:10},horizon_beyond_age:{tier:3,value:30},damping_min_interval:{tier:3,value:3},deescalate_hold_cycles:{tier:3,value:4},agent_budget_limit:{tier:3,value:100},agent_autonomy:{tier:4,value:1}};
+const clamp=v=>Math.max(0,Math.min(1,v));
+function estimator(signals){const f={};for(const s of signals)f[s.name]=s.value;let t=0,c=0,u=0;for(const[n,w]of Object.entries(WEIGHTS)){if(n in f){t+=w*clamp(f[n]);const sc=signals.find(s=>s.name===n);c+=w*clamp(sc?sc.confidence:0);u+=w;}}if(u===0)return{value:0,confidence:0};return{value:t/u,confidence:c/u};}
+const GENESIS='0'.repeat(64),HZ=['NORMAL','AT_HORIZON','BEYOND_HORIZON'];
+class Kernel{
+  constructor(){this.gov={};for(const[k,v]of Object.entries(SPECS))this.gov[k]={...v};this.events=[];this.level=1;this.cyc=0;this.memory={};this.damper={};this.hold={since:null,cand:null};this.horizon={state:0,oldest:0};}
+  govGet(n,d){return n in this.gov?this.gov[n].value:d;}
+  append(cycle,kind,payload){const prev=this.events.length?this.events[this.events.length-1].hash:GENESIS;const seq=this.events.length;const hash=canonicalHash({seq,cycle,kind,payload,prev});const ev={seq,cycle,kind,payload,prev,hash};this.events.push(ev);return ev;}
+  verify(){let prev=GENESIS,bad=-1;for(let i=0;i<this.events.length;i++){const e=this.events[i];if(e.seq!==i||e.prev!==prev||e.hash!==canonicalHash({seq:e.seq,cycle:e.cycle,kind:e.kind,payload:e.payload,prev:e.prev})){bad=i;break;}prev=e.hash;}return{ok:bad<0,bad};}
+  updateHorizon(sg,cy){const ages=sg.map(s=>cy-s.cycle);this.horizon.oldest=ages.length?Math.max(...ages):0;const w=this.govGet('horizon_warn_age',10),b=this.govGet('horizon_beyond_age',30);this.horizon.state=this.horizon.oldest>b?2:this.horizon.oldest>w?1:0;return this.horizon.state;}
+  cf(){return[1,0.5,0][this.horizon.state];}
+  levelFor(v){let lv=1;for(const[t,l]of ESCALATE)if(v>=t)lv=l;return lv;}
+  holdCheck(cur,wants,cy,hold){if(wants>cur){this.hold.since=null;this.hold.cand=null;return wants;}if(wants<cur){if(this.hold.cand!==wants){this.hold.cand=wants;this.hold.since=cy;return cur;}if(cy-this.hold.since<hold)return cur;this.hold.since=null;this.hold.cand=null;return wants;}return cur;}
+  cycle(sg,cy){this.cyc=cy;const hs=this.updateHorizon(sg,cy);if(hs!==0)this.append(cy,'HORIZON',{state:HZ[hs],oldest_age:this.horizon.oldest});let sc=estimator(sg);sc={value:sc.value,confidence:sc.confidence*this.cf()};const bias=this.govGet('escalate_bias',0);let lv=this.levelFor(clamp(sc.value+bias));if(hs===2)lv=4;this.level=this.holdCheck(this.level,lv,cy,this.govGet('deescalate_hold_cycles',4));if(hs===2)this.execute({action:'SNAPSHOT',scope:'__kernel__',reason:'BEYOND_HORIZON: blind emergency state'},{forced:true,author:'system'});this.memory.last_score=sc.value;this.memory.last_level=this.level;this.append(cy,'DECISION',{level:'Z'+this.level,score:sc.value,confidence:sc.confidence,horizon:HZ[hs]});return{level:this.level,score:sc.value,horizon:hs};}
+  execute(req,opts){opts=opts||{};const at=opts.cycle==null?this.cyc:opts.cycle;const by=opts.author==='system'?'__kernel__':'supervisor';if(!ALLOWED[this.level].has(req.action)){this.append(at,'OUTCOME',{by,action:req.action,scope:req.scope,status:'BLOCKED_BY_LEVEL'});return 'BLOCKED_BY_LEVEL';}const key=req.action+'|'+req.scope,min=this.govGet('damping_min_interval',3);if(!opts.forced){const last=this.damper[key];if(last!=null&&at-last<min){this.append(at,'OUTCOME',{by,action:req.action,scope:req.scope,status:'BLOCKED_BY_DAMPING'});return 'BLOCKED_BY_DAMPING';}this.damper[key]=at;}this.append(at,'INTENT',{by,action:req.action,scope:req.scope,reason:req.reason||''});this.append(at,'OUTCOME',{by,action:req.action,scope:req.scope,status:'APPLIED'});return 'APPLIED';}
+  applyChange(ch){const at=this.cyc;try{if(!(ch.param in this.gov))throw new Error('unknown param: '+ch.param);const sp=this.gov[ch.param];if(sp.tier===4&&!ch.human_approved)throw new Error(ch.param+': Tier E requires human approval (I5)');if(ch.author==='learner'){if(sp.tier>=3)throw new Error(ch.param+': Tier '+['','B','C','D','E'][sp.tier]+" exceeds the learner's authority (I6)");if(!ch.provenance)throw new Error(ch.param+': learner without provenance (I6)');}if(ch.author==='system')throw new Error('SYSTEM does not write parameters through governance');sp.value=ch.new_value;this.append(at,'CHANGE',{param:ch.param,value:ch.new_value,author:ch.author,provenance:ch.provenance||'',human_approved:!!ch.human_approved});return{ok:true};}catch(e){this.append(at,'CHANGE_REJECTED',{param:ch.param,reason:e.message});return{ok:false,error:e.message};}}
+}
+
+/* ===== UI ===== */
+const SIGDEF=[
+  ['error_rate','error rate'],['permission_denials','permission denials'],['cost_burn','cost burn'],
+  ['loop_rate','loop rate'],['output_anomaly','output anomaly'],['safety_flags','safety flags'],
+  ['human_override_rate','human overrides']];
+const ACTS=[['SNAPSHOT','SNAPSHOT'],['FREEZE_WRITES','FREEZE'],['QUARANTINE','QUARANTINE'],['ROLLBACK','ROLLBACK'],['KILL_DISPOSABLE','KILL'],['EXPAND','EXPAND']];
+const WORD={1:'calm',2:'watchful',3:'containing',4:'emergency'};
+const HZC={0:['see','seeing'],1:['dim','dimming'],2:['blind','blind']};
+const $=s=>document.querySelector(s);
+let K=new Kernel(),cyc=0,timer=null;
+
+function buildControls(){
+  const sc=$('#signals');sc.innerHTML='';
+  for(const[key,label]of SIGDEF){
+    const d=document.createElement('div');d.className='sig';
+    d.innerHTML=`<label>${label}</label><input type="range" min="0" max="1" step="0.01" value="0.05" data-sig="${key}"><span class="val" data-val="${key}">0.05</span>`;
+    sc.appendChild(d);
+  }
+  sc.addEventListener('input',e=>{const k=e.target.getAttribute('data-sig');if(k)sc.querySelector(`[data-val="${k}"]`).textContent=(+e.target.value).toFixed(2);});
+  const ac=$('#actions');ac.innerHTML='';
+  for(const[a,label]of ACTS){const b=document.createElement('button');b.className='btn small';b.textContent=label;b.dataset.act=a;ac.appendChild(b);}
+  ac.addEventListener('click',e=>{const a=e.target.dataset.act;if(!a)return;const r=K.execute({action:a,scope:'agent:demo',reason:'operator '+a},{});toast(a+' → '+r);render();});
+}
+function readSignals(){const age=+$('#age').value;const out=[];document.querySelectorAll('[data-sig]').forEach(i=>{out.push({name:i.getAttribute('data-sig'),value:+i.value,confidence:1,cycle:cyc-age});});return out;}
+function runCycle(){cyc++;K.cycle(readSignals(),cyc);render();}
+function render(){
+  const lv=K.level,sc=K.memory.last_score||0,hs=K.horizon.state;
+  $('#hero').className='hero z'+lv;$('#lvl').textContent='Z'+lv;$('#risk').textContent=sc.toFixed(2);
+  $('#word').textContent='risk · '+WORD[lv];
+  const[hc,ht]=HZC[hs];$('#hz').className='hz '+hc;$('#hz').textContent='horizon: '+ht;
+  $('#cyclbl').textContent='cycle '+cyc;
+  const lad=$('#ladder');lad.innerHTML='';for(let z=1;z<=4;z++){const s=document.createElement('span');s.className='rung z'+z+(z<=lv?' on':'')+(z===lv?' cur':'');s.textContent='Z'+z;lad.appendChild(s);}
+  renderLog();renderInteg();
+}
+function evMap(e){const p=e.payload,k=e.kind;let cat='act',chip=k,txt='',gold=false;
+  if(k==='DECISION'){cat='dec';txt=`${p.level} · risk ${p.score.toFixed(2)} · ${HZC[HZ.indexOf(p.horizon)]?HZC[HZ.indexOf(p.horizon)][1]:p.horizon}`;}
+  else if(k==='HORIZON'){cat='dec';txt=`${p.state} · signal stale (age ${p.oldest_age})`;}
+  else if(k==='INTENT'){txt=`${p.action} · ${p.scope} · by ${p.by}`;}
+  else if(k==='OUTCOME'){txt=`${p.action} → ${p.status}`;}
+  else if(k==='CHANGE_REJECTED'){cat='gov';gold=true;txt=`${p.param}: REJECTED · ${p.reason}`;}
+  else if(k==='CHANGE'){cat='gov';gold=!!p.human_approved;txt=`${p.param} = ${p.value} · ${p.human_approved?'human-approved':'auto'} · by ${p.author}`;}
+  return{cat,chip,txt,gold};}
+function renderLog(){
+  const box=$('#log');const v=K.verify();box.innerHTML='';
+  K.events.forEach(e=>{const m=evMap(e);const row=document.createElement('div');
+    row.className='ev cat-'+m.cat+(m.gold?' gold':'')+(!v.ok&&e.seq>=v.bad?' broken':'');
+    row.innerHTML=`<span class="star">${m.gold?'★':''}</span><span class="seq">#${e.seq}</span><span class="tick">t${e.cycle}</span><span class="chip c-${m.cat}">${m.chip}</span><span class="detail">${esc(m.txt)}</span><span class="hash">${e.hash.slice(0,6)}…</span>`;
+    box.appendChild(row);});
+  box.scrollTop=box.scrollHeight;
+  $('#evcount').textContent=K.events.length+' events';
+}
+function renderInteg(){const v=K.verify();const el=$('#integ');
+  if(v.ok){el.className='integrity';el.innerHTML=`<span class="dot"></span>chain intact · ${K.events.length}`;$('#footnote').textContent='append-only · SHA-256 hash chain';}
+  else{el.className='integrity bad';el.innerHTML=`<span class="dot"></span>chain BROKEN at #${v.bad}`;$('#footnote').textContent=`tamper detected at event #${v.bad} — the chain no longer verifies`;}
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+let tmo;function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(tmo);tmo=setTimeout(()=>el.classList.remove('show'),1600);}
+
+/* governance buttons */
+document.addEventListener('click',e=>{const g=e.target.getAttribute&&e.target.getAttribute('data-gov');if(!g)return;let r;
+  if(g==='agent-budget')r=K.applyChange({param:'agent_budget_limit',new_value:500,author:'learner',provenance:'agent: budget exhausted'});
+  else if(g==='agent-autonomy')r=K.applyChange({param:'agent_autonomy',new_value:1,author:'learner',provenance:'agent',human_approved:true});
+  else if(g==='op-autonomy')r=K.applyChange({param:'agent_autonomy',new_value:0.5,author:'human',provenance:'operator op-7',human_approved:true});
+  else if(g==='op-budget')r=K.applyChange({param:'agent_budget_limit',new_value:200,author:'human',provenance:'operator op-7'});
+  toast(r.ok?'CHANGE applied':'REJECTED · '+r.error);render();});
+
+$('#run').onclick=runCycle;
+$('#reset').onclick=()=>{K=new Kernel();cyc=0;stopAuto();render();toast('reset');};
+$('#verify').onclick=()=>{const v=K.verify();toast(v.ok?'chain VERIFIED ✓':'chain BROKEN at #'+v.bad);renderInteg();};
+$('#tamper').onclick=()=>{const n=K.events.length;if(n<2){toast('run a few cycles first');return;}const i=Math.floor((n-1)*0.4)+1;K.events[i].payload={forged:true};toast('event #'+i+' payload forged — verify the chain');render();};
+function stopAuto(){if(timer){clearInterval(timer);timer=null;$('#auto').classList.remove('primary');$('#auto').textContent='Auto';}}
+$('#auto').onclick=()=>{if(timer){stopAuto();}else{timer=setInterval(runCycle,900);$('#auto').classList.add('primary');$('#auto').textContent='⏸ Auto';}};
+$('#tt').onclick=()=>{const r=document.documentElement;let c=r.getAttribute('data-theme');if(!c)c=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';r.setAttribute('data-theme',c==='dark'?'light':'dark');};
+(function(){try{const parts=location.hostname.split('.');if(parts.length>2&&parts[1]==='github'){$('#repo').href='https://github.com/'+parts[0]+'/'+location.pathname.split('/')[1];}else{$('#repo').href='https://github.com/Rus1978Rus/acdm_kernel';}}catch(e){$('#repo').href='https://github.com/Rus1978Rus/acdm_kernel';}})();
+
+buildControls();runCycle();
+</script>
+</body>
+</html>

@@ -1,15 +1,15 @@
-"""ACDM-KERNEL · демпфирование и удержание уровня (И9).
+"""ACDM-KERNEL · damping and level hold (I9).
 
-Два урока спецификации, исполненные в коде:
+Two lessons from the spec, enforced in code:
 
-- Урок 13B: демпфер НЕ ДОЛЖЕН блокировать безопасность. Поэтому у каждого
-  вызова есть forced=True — для действий, которые выбирает само ядро
-  (SNAPSHOT при BEYOND_HORIZON). Демпфер защищает от флапа плагинов,
-  а не от собственных защитных реакций контура.
+- Lesson 13B: the damper MUST NOT block safety. So every call takes forced=True
+  — for actions the kernel itself chooses (SNAPSHOT on BEYOND_HORIZON). The
+  damper guards against plugin flapping, not against the circuit's own
+  protective reactions.
 
-- Урок D2: квоты на эскалацию — ошибка. Эскалация НИКОГДА не блокируется.
-  Демпфер применяется только к повторам ОДНОГО действия в ОДНОМ scope
-  (anti-flap), а удержание — только к ДЕ-эскалации.
+- Lesson D2: escalation quotas are a mistake. Escalation is NEVER blocked. The
+  damper applies only to repeats of ONE action in ONE scope (anti-flap), and the
+  hold applies only to DE-escalation.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from .types import ActionClass, ActionRequest
 
 
 class Damper:
-    """Минимальный интервал между повторами (action, scope). Не блокирует новые scope."""
+    """Minimum interval between repeats of (action, scope). Never blocks a new scope."""
 
     def __init__(self) -> None:
         self._last: Dict[Tuple[ActionClass, str], int] = {}
@@ -27,7 +27,7 @@ class Damper:
     def allow(self, request: ActionRequest, min_interval: int, cycle: int,
               forced: bool = False) -> bool:
         if forced:
-            return True                      # урок 13B: безопасность не демпфируется
+            return True                      # lesson 13B: safety is not damped
         key = (request.action, request.scope)
         last = self._last.get(key)
         if last is not None and cycle - last < min_interval:
@@ -37,9 +37,9 @@ class Damper:
 
 
 class EscalationHold:
-    """Де-эскалация требует deescalate_hold_cycles стабильных циклов.
+    """De-escalation requires deescalate_hold_cycles stable cycles.
 
-    Эскалация — мгновенно, всегда (урок D2).
+    Escalation is instant, always (lesson D2).
     """
 
     def __init__(self) -> None:
@@ -51,14 +51,14 @@ class EscalationHold:
         if wants_level > current_level:
             self._stable_since = None
             self._candidate = None
-            return wants_level               # эскалация мгновенна
+            return wants_level               # escalation is instant
         if wants_level < current_level:
             if self._candidate != wants_level:
                 self._candidate = wants_level
                 self._stable_since = cycle
                 return current_level
             if cycle - self._stable_since < hold_cycles:
-                return current_level         # держим: стабильность ещё не доказана
+                return current_level         # hold: stability not yet proven
             self._stable_since = None
             self._candidate = None
             return wants_level
